@@ -17,6 +17,8 @@ from app.models.audio import SinkDevice, AppStream
 from app.ui.components.device_card import DeviceCard
 from app.ui.components.volume_slider import VolumeSlider
 from app.ui.components.status_badge import StatusBadge
+from app.ui.components.headset_mode_card import HeadsetModeCard
+from app.ui.styles.icon_helper import IconHelper
 
 
 class DevicesPage(QWidget):
@@ -78,7 +80,11 @@ class DevicesPage(QWidget):
 
         self.container_layout.addLayout(sinks_section)
 
-        # ------------------ بخش دوم: مدیریت پروفایل صوتی کارت فعال ------------------
+        # ------------------ بخش دوم: مدیریت حالت و پروفایل صوتی خروجی فعال ------------------
+        self.headset_mode_card = HeadsetModeCard(self.profile_mgr)
+        self.headset_mode_card.mode_changed.connect(lambda mode: self.refresh_data())
+        self.container_layout.addWidget(self.headset_mode_card)
+
         self.profile_section = QFrame()
         self.profile_section.setProperty("card", "true")
         profile_layout = QVBoxLayout(self.profile_section)
@@ -155,17 +161,23 @@ class DevicesPage(QWidget):
         self._update_apps()
 
     def _update_profiles(self, default_sink: Optional[SinkDevice]):
-        """به‌روزرسانی پروفایل‌های کارت صوتی فعال."""
+        """به‌روزرسانی پروفایل‌های کارت صوتی فعال و کارت حالت هدست."""
         self.combo_profiles.blockSignals(True)
         self.combo_profiles.clear()
 
-        if not default_sink or not default_sink.card_id:
+        card_target = default_sink.card_name or (str(default_sink.card_id) if default_sink and default_sink.card_id else None) if default_sink else None
+
+        if not default_sink or not card_target:
             self.profile_section.setVisible(False)
+            self.headset_mode_card.setVisible(False)
             self.combo_profiles.blockSignals(False)
             return
 
+        # به‌روزرسانی کارت اختصاصی حالت هدست اگر هدفون بلوتوث باشد
+        self.headset_mode_card.set_target_card(card_target)
+
         self.profile_section.setVisible(True)
-        profiles = self.profile_mgr.get_card_profiles(str(default_sink.card_id))
+        profiles = self.profile_mgr.get_card_profiles(card_target)
 
         active_idx = 0
         for i, p in enumerate(profiles):

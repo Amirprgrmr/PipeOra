@@ -68,6 +68,33 @@ class ProfileManager:
 
         return desc or profile_name
 
+    def _find_card(self, cards: List[dict], card_id_or_name: str) -> Optional[dict]:
+        """یافتن کارت صوتی بر اساس شناسه، نام، شیء پایپ‌وایر یا مک آدرس بلوتوث."""
+        target_str = str(card_id_or_name).strip()
+        if not target_str:
+            return None
+
+        clean_mac = target_str.replace(":", "_").lower()
+
+        for c in cards:
+            c_index = str(c.get("index", ""))
+            c_name = str(c.get("name", ""))
+            props = c.get("properties", {}) or {}
+            dev_name = str(props.get("device.name", ""))
+            obj_id = str(props.get("object.id", ""))
+            bt_addr = str(props.get("api.bluez5.address", ""))
+            dev_str = str(props.get("device.string", ""))
+
+            # تطابق مستقیم
+            if target_str in (c_index, c_name, dev_name, obj_id, bt_addr, dev_str):
+                return c
+
+            # تطابق با مک آدرس بلوتوث
+            if clean_mac and clean_mac in c_name.lower():
+                return c
+
+        return None
+
     def get_card_profiles(self, card_id_or_name: str) -> List[AudioProfile]:
         """دریافت پروفایل‌های کارت صوتی و تحلیل آنها."""
         out = self._run_cmd(["pactl", "-f", "json", "list", "cards"])
@@ -79,13 +106,7 @@ class ProfileManager:
         except json.JSONDecodeError:
             return []
 
-        target_str = str(card_id_or_name)
-        matched_card = None
-        for c in cards:
-            if str(c.get("index")) == target_str or c.get("name") == target_str:
-                matched_card = c
-                break
-
+        matched_card = self._find_card(cards, card_id_or_name)
         if not matched_card:
             return []
 
@@ -137,8 +158,65 @@ class ProfileManager:
         """اعمال تغییر پروفایل صوتی بر روی کارت در PipeWire."""
         target = str(card_id_or_name).strip()
         prof = str(profile_name).strip()
+
+        # استخراج نام یا ایندکس معتبر کارت
+        out = self._run_cmd(["pactl", "-f", "json", "list", "cards"])
+        if out:
+            try:
+                cards = json.loads(out)
+                matched = self._find_card(cards, target)
+                if matched and matched.get("name"):
+                    target = str(matched.get("name"))
+                elif matched and matched.get("index") is not None:
+                    target = str(matched.get("index"))
+            except json.JSONDecodeError:
+                pass
+
         res = self._run_cmd(["pactl", "set-card-profile", target, prof])
         return res is not None
+
+    def has_headset_modes(self, card_id_or_name: str) -> bool:
+        """بررسی اینکه آیا کارت صوتی از دو حالت A2DP و HFP پشتیبانی می‌کند یا خیر."""
+        profiles = self.get_card_profiles(card_id_or_name)
+        has_a2dp = any(p.is_a2dp for p in profiles)
+        has_hfp = any(p.is_hfp for p in profiles)
+        return has_a2dp and has_hfp
+
+    def get_headset_mode(self, card_id_or_name: str) -> str:
+        """
+        تشخیص حالت فعلی هدست بلوتوث:
+        - 'a2dp': حالت پخش موسیقی باکیفیت بالا (میکروفن هدفون غیرفعال)
+        - 'hfp': حالت مکالمه و تماس (میکروفن هدفون فعال)
+        - 'other': سایر حالات یا عدم پشتیبانی
+        """
+        profiles = self.get_card_profiles(card_id_or_name)
+        for p in profiles:
+            if p.is_active:
+                if p.is_a2dp:
+                    return "a2dp"
+                elif p.is_hfp:
+                    return "hfp"
+        return "other"
+
+    def set_headset_mode(self, card_id_or_name: str, mode: str) -> bool:
+        """
+        تغییر مستقیم حالت کاربری هدفون بلوتوث میان:
+        - mode='a2dp': کیفیت عالی موسیقی (A2DP Stereo)
+        - mode='hfp': فعال‌سازی میکروفن هدفون برای مکالمه (HFP Headset)
+        """
+        profiles = self.get_card_profiles(card_id_or_name)
+        target_mode = mode.lower().strip()
+
+        for p in profiles:
+            if target_mode == "a2dp" and p.is_a2dp:
+                logger.info("سوئیچ به حالت موسیقی A2DP: %s", p.name)
+                return self.set_card_profile(card_id_or_name, p.name)
+            elif target_mode == "hfp" and p.is_hfp:
+                logger.info("سوئیچ به حالت مکالمه با میکروفن HFP: %s", p.name)
+                return self.set_card_profile(card_id_or_name, p.name)
+
+        logger.warning("پروفایل متناسب با حالت %s در کارت %s یافت نشد.", mode, card_id_or_name)
+        return False
 
     def switch_to_a2dp_if_possible(self, card_id_or_name: str) -> bool:
         """سوئیچ خودکار به پروفایل باکیفیت A2DP در صورت پشتیبانی کارت."""

@@ -63,3 +63,36 @@ def test_set_card_profile():
             check=False,
             timeout=3.0
         )
+
+
+def test_headset_mode_switching():
+    mgr = ProfileManager()
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout=SAMPLE_CARDS_JSON)
+
+        # Currently active is a2dp-sink in SAMPLE_CARDS_JSON
+        mode = mgr.get_headset_mode("110")
+        assert mode == "a2dp"
+        assert mgr.has_headset_modes("110") is True
+
+        # Switch to hfp
+        res_hfp = mgr.set_headset_mode("110", "hfp")
+        assert res_hfp is True
+        mock_run.assert_called_with(
+            ["pactl", "set-card-profile", "bluez_card.84_AC_60_C9_02_74", "headset-head-unit"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=3.0
+        )
+
+        # Switch to a2dp
+        res_a2dp = mgr.set_headset_mode("110", "a2dp")
+        assert res_a2dp is True
+        mock_run.assert_called_with(
+            ["pactl", "set-card-profile", "bluez_card.84_AC_60_C9_02_74", "a2dp-sink"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=3.0
+        )

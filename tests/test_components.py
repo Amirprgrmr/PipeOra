@@ -34,3 +34,15 @@ def test_volume_slider_feedback_loop_prevention(qapp):
     # شبیه‌سازی تغییر توسط کاربر
     slider.slider.setValue(90)
     assert 90 in received_volumes
+
+
+def test_headset_mode_card(qapp):
+    from app.core.profile_manager import ProfileManager
+    from app.ui.components.headset_mode_card import HeadsetModeCard
+
+    mgr = ProfileManager()
+    card = HeadsetModeCard(mgr)
+    assert card is not None
+    # Initially hidden until set_target_card is called
+    card.set_target_card(None)
+    assert card.isVisible() is False

@@ -18,6 +18,7 @@ class SinkDevice:
     is_default: bool = False
     is_bluetooth: bool = False
     card_id: Optional[int] = None
+    card_name: Optional[str] = None
     properties: Dict[str, Any] = field(default_factory=dict)
 
     @property

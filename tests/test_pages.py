@@ -41,7 +41,7 @@ def test_pages_instantiation(qapp, tmp_path):
     assert devs is not None
 
     # Test BluetoothPage
-    bt_page = BluetoothPage(bt_mgr, config_mgr)
+    bt_page = BluetoothPage(bt_mgr, profile_mgr, config_mgr)
     assert bt_page is not None
 
     # Test SettingsPage

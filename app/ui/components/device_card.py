@@ -4,7 +4,7 @@
 """
 
 from typing import Optional
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
 )
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from app.models.audio import SinkDevice
 from app.models.bluetooth import BTDevice
 from app.ui.components.status_badge import StatusBadge
+from app.ui.styles.icon_helper import IconHelper
 
 
 class DeviceCard(QFrame):
@@ -34,15 +35,15 @@ class DeviceCard(QFrame):
         main_layout.setContentsMargins(16, 14, 16, 14)
         main_layout.setSpacing(14)
 
-        # آیکون دستگاه
-        self.lbl_icon = QLabel("🎧")
+        # آیکون وکتور دستگاه
+        self.lbl_icon = QLabel()
         self.lbl_icon.setFixedSize(40, 40)
         self.lbl_icon.setAlignment(Qt.AlignCenter)
         self.lbl_icon.setStyleSheet("""
             QLabel {
                 background-color: #222936;
                 border-radius: 20px;
-                font-size: 20px;
+                padding: 6px;
             }
         """)
         main_layout.addWidget(self.lbl_icon)
@@ -83,10 +84,11 @@ class DeviceCard(QFrame):
         action_layout = QHBoxLayout()
         action_layout.setSpacing(8)
 
-        # دکمه نشان علاقه‌مندی (ستاره)
-        self.btn_fav = QPushButton("☆")
+        # دکمه نشان علاقه‌مندی (ستاره وکتور SVG)
+        self.btn_fav = QPushButton()
         self.btn_fav.setToolTip("افزودن به دستگاه‌های محبوب")
         self.btn_fav.setFixedSize(32, 32)
+        self.btn_fav.setIconSize(QSize(18, 18))
         self.btn_fav.clicked.connect(self._toggle_favorite)
         action_layout.addWidget(self.btn_fav)
 
@@ -109,11 +111,11 @@ class DeviceCard(QFrame):
         self.lbl_desc.setText(f"حجم صدا: {device.volume_percent}٪ | {port_info}")
 
         if device.is_bluetooth:
-            self.lbl_icon.setText("🎧")
+            self.lbl_icon.setPixmap(IconHelper.get_pixmap("headphones", 24))
         elif "hdmi" in device.name.lower():
-            self.lbl_icon.setText("🖥️")
+            self.lbl_icon.setPixmap(IconHelper.get_pixmap("display-hdmi", 24))
         else:
-            self.lbl_icon.setText("🔊")
+            self.lbl_icon.setPixmap(IconHelper.get_pixmap("speaker-high", 24))
 
         self.badge_default.setVisible(device.is_default)
         self.badge_status.setVisible(False)
@@ -142,9 +144,9 @@ class DeviceCard(QFrame):
         self.lbl_desc.setText(f"آدرس سخت‌افزاری: <span dir='ltr'>{device.mac_address}</span>")
 
         if device.is_headset:
-            self.lbl_icon.setText("🎧")
+            self.lbl_icon.setPixmap(IconHelper.get_pixmap("headphones", 24))
         else:
-            self.lbl_icon.setText("📻")
+            self.lbl_icon.setPixmap(IconHelper.get_pixmap("bluetooth", 24))
 
         self.badge_default.setVisible(False)
 
@@ -178,12 +180,8 @@ class DeviceCard(QFrame):
         self.favorite_toggled.emit(self._target_id, self._is_favorite)
 
     def _update_favorite_icon(self):
-        if self._is_favorite:
-            self.btn_fav.setText("★")
-            self.btn_fav.setStyleSheet("color: #E9B96E; font-size: 16px;")
-        else:
-            self.btn_fav.setText("☆")
-            self.btn_fav.setStyleSheet("color: #A6AFBD; font-size: 16px;")
+        self.btn_fav.setIcon(IconHelper.star_icon(self._is_favorite))
+        self.btn_fav.setText("")
 
     def _on_action_clicked(self):
         action_text = self.btn_action.text()

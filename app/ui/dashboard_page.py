@@ -4,7 +4,7 @@
 """
 
 from typing import List, Optional
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea,
     QPushButton, QGridLayout
@@ -19,6 +19,8 @@ from app.models.audio import SinkDevice
 from app.models.bluetooth import BTDevice
 from app.ui.components.volume_slider import VolumeSlider
 from app.ui.components.status_badge import StatusBadge
+from app.ui.components.headset_mode_card import HeadsetModeCard
+from app.ui.styles.icon_helper import IconHelper
 
 
 class DashboardPage(QWidget):
@@ -102,7 +104,7 @@ class DashboardPage(QWidget):
         # اطلاعات دستگاه فعال
         dev_info_layout = QHBoxLayout()
 
-        self.hero_icon = QLabel("🔊")
+        self.hero_icon = QLabel()
         self.hero_icon.setFixedSize(52, 52)
         self.hero_icon.setAlignment(Qt.AlignCenter)
         self.hero_icon.setStyleSheet("""
@@ -110,7 +112,7 @@ class DashboardPage(QWidget):
                 background-color: rgba(103, 201, 243, 0.15);
                 border: 1px solid rgba(103, 201, 243, 0.4);
                 border-radius: 26px;
-                font-size: 26px;
+                padding: 10px;
             }
         """)
         dev_info_layout.addWidget(self.hero_icon)
@@ -156,6 +158,11 @@ class DashboardPage(QWidget):
 
         hero_layout.addLayout(slider_box)
         container_layout.addWidget(self.hero_card)
+
+        # ------------------ کارت اختصاصی انتخاب حالت هدست بلوتوث (میکروفن / موسیقی) ------------------
+        self.headset_mode_card = HeadsetModeCard(self.profile_mgr)
+        self.headset_mode_card.mode_changed.connect(lambda mode: self.refresh_data())
+        container_layout.addWidget(self.headset_mode_card)
 
         # ------------------ بخش سوئیچ سریع خروجی‌ها ------------------
         quick_switch_section = QVBoxLayout()
@@ -212,28 +219,36 @@ class DashboardPage(QWidget):
             self.main_volume_slider.set_muted(default_sink.mute)
 
             if default_sink.is_bluetooth:
-                self.hero_icon.setText("🎧")
+                self.hero_icon.setPixmap(IconHelper.get_pixmap("headphones", 30))
                 self.badge_active_type.set_variant("primary", "هدفون بلوتوث")
-                # بررسی پروفایل A2DP
-                if default_sink.card_id:
-                    profs = self.profile_mgr.get_card_profiles(str(default_sink.card_id))
-                    active_p = next((p for p in profs if p.is_active), None)
-                    if active_p:
-                        self.badge_active_profile.set_variant("success", active_p.persian_name)
+                # فعال‌سازی کارت تنظیم حالت هدست
+                card_target = default_sink.card_name or (str(default_sink.card_id) if default_sink.card_id else None)
+                self.headset_mode_card.set_target_card(card_target)
+
+                if card_target:
+                    mode = self.profile_mgr.get_headset_mode(card_target)
+                    if mode == "a2dp":
+                        self.badge_active_profile.set_variant("success", "کیفیت استریو A2DP (میکروفن خاموش)")
+                    elif mode == "hfp":
+                        self.badge_active_profile.set_variant("warning", "حالت مکالمه HFP (میکروفن فعال)")
                     else:
-                        self.badge_active_profile.set_variant("success", "پخش استریوی باکیفیت (A2DP)")
+                        self.badge_active_profile.set_variant("success", "پخش باکیفیت")
             elif "hdmi" in default_sink.name.lower():
-                self.hero_icon.setText("🖥️")
+                self.hero_icon.setPixmap(IconHelper.get_pixmap("display-hdmi", 30))
                 self.badge_active_type.set_variant("neutral", "خروجی دیجیتال HDMI")
                 self.badge_active_profile.set_variant("neutral", "دیجیتال")
+                self.headset_mode_card.setVisible(False)
             else:
-                self.hero_icon.setText("🔊")
+                self.hero_icon.setPixmap(IconHelper.get_pixmap("speaker-high", 30))
                 self.badge_active_type.set_variant("neutral", "بلندگوی داخلی لپ‌تاپ")
                 self.badge_active_profile.set_variant("neutral", "استریو آنالوگ")
+                self.headset_mode_card.setVisible(False)
         else:
+            self.hero_icon.setPixmap(IconHelper.get_pixmap("speaker-mute", 30))
             self.lbl_active_name.setText("هیچ خروجی صوتی فعالی یافت نشد")
             self.badge_active_type.set_variant("error", "بدون خروجی")
             self.badge_active_profile.setVisible(False)
+            self.headset_mode_card.setVisible(False)
 
         # به‌روزرسانی کلیدهای سوئیچ سریع
         self._update_quick_sinks(sinks)
@@ -242,7 +257,7 @@ class DashboardPage(QWidget):
         self._update_bluetooth_summary()
 
     def _update_quick_sinks(self, sinks: List[SinkDevice]):
-        """بازسازی کلیدهای سریع انتخاب خروجی."""
+        """بازسازی کلیدهای سریع انتخاب خروجی با آیکون‌های وکتور."""
         while self.quick_buttons_layout.count():
             item = self.quick_buttons_layout.takeAt(0)
             widget = item.widget()
@@ -251,8 +266,10 @@ class DashboardPage(QWidget):
 
         for s in sinks:
             btn = QPushButton()
-            icon_char = "🎧" if s.is_bluetooth else ("🖥️" if "hdmi" in s.name.lower() else "🔊")
-            btn.setText(f"{icon_char}  {s.display_name}")
+            icon_name = "headphones" if s.is_bluetooth else ("display-hdmi" if "hdmi" in s.name.lower() else "speaker-high")
+            btn.setIcon(IconHelper.get_icon(icon_name))
+            btn.setIconSize(QSize(18, 18))
+            btn.setText(f"  {s.display_name}")
             btn.setFixedHeight(44)
 
             if s.is_default:
@@ -267,7 +284,7 @@ class DashboardPage(QWidget):
         self.quick_buttons_layout.addStretch()
 
     def _update_bluetooth_summary(self):
-        """نمایش خلاصه دستگاه‌های بلوتوث جفت‌شده در داشبورد."""
+        """نمایش خلاصه دستگاه‌های بلوتوث جفت‌شده در داشبورد با آیکون‌های برداری."""
         while self.bt_quick_layout.count():
             item = self.bt_quick_layout.takeAt(0)
             widget = item.widget()
@@ -285,7 +302,9 @@ class DashboardPage(QWidget):
             row = QHBoxLayout()
             row.setSpacing(12)
 
-            lbl_icon = QLabel("🎧" if dev.is_headset else "📻")
+            lbl_icon = QLabel()
+            icon_name = "headphones" if dev.is_headset else "bluetooth"
+            lbl_icon.setPixmap(IconHelper.get_pixmap(icon_name, 22))
             lbl_icon.setFixedSize(28, 28)
             lbl_icon.setAlignment(Qt.AlignCenter)
             row.addWidget(lbl_icon)

@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
+from app.ui.styles.icon_helper import IconHelper
+
 
 class AboutPage(QWidget):
     """صفحه درباره ما و معرفی اختصاصی پروژه."""
@@ -42,16 +44,17 @@ class AboutPage(QWidget):
         card_layout.setSpacing(16)
         card_layout.setAlignment(Qt.AlignCenter)
 
-        # لوگوی برنامه
-        lbl_logo = QLabel("🎧")
+        # لوگوی برنامه با وکتور SVG باکیفیت
+        lbl_logo = QLabel()
         lbl_logo.setFixedSize(72, 72)
         lbl_logo.setAlignment(Qt.AlignCenter)
+        lbl_logo.setPixmap(IconHelper.get_pixmap("headphones", 40))
         lbl_logo.setStyleSheet("""
             QLabel {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #67C9F3, stop:1 #55CFA0);
-                color: #111318;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(103, 201, 243, 0.2), stop:1 rgba(85, 207, 160, 0.2));
+                border: 2px solid #67C9F3;
                 border-radius: 36px;
-                font-size: 36px;
+                padding: 12px;
             }
         """)
         card_layout.addWidget(lbl_logo, 0, Qt.AlignCenter)

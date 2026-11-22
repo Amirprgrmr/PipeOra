@@ -5,7 +5,7 @@
 
 import logging
 from typing import Optional
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QIcon, QCloseEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton,
@@ -20,6 +20,7 @@ from app.core.config_manager import ConfigManager
 from app.services.autostart_service import AutostartService
 from app.services.event_worker import EventWorker
 from app.ui.tray_icon import AppTrayIcon
+from app.ui.styles.icon_helper import IconHelper
 
 from app.ui.dashboard_page import DashboardPage
 from app.ui.devices_page import DevicesPage
@@ -92,15 +93,15 @@ class MainWindow(QMainWindow):
         brand_layout = QHBoxLayout()
         brand_layout.setSpacing(12)
 
-        lbl_logo = QLabel("🎧")
+        lbl_logo = QLabel()
         lbl_logo.setFixedSize(38, 38)
         lbl_logo.setAlignment(Qt.AlignCenter)
+        lbl_logo.setPixmap(IconHelper.get_pixmap("headphones", 24))
         lbl_logo.setStyleSheet("""
             QLabel {
-                background-color: #67C9F3;
-                color: #111318;
+                background-color: rgba(103, 201, 243, 0.15);
+                border: 1px solid rgba(103, 201, 243, 0.4);
                 border-radius: 19px;
-                font-size: 18px;
             }
         """)
         brand_layout.addWidget(lbl_logo)
@@ -122,17 +123,19 @@ class MainWindow(QMainWindow):
 
         sidebar_layout.addSpacing(16)
 
-        # دکمه‌های ناوبری
+        # دکمه‌های ناوبری با آیکون‌های وکتور SVG
         nav_items = [
-            ("داشبورد", "🏠", 0),
-            ("دستگاه‌های صوتی", "🔊", 1),
-            ("مدیریت بلوتوث", "📶", 2),
-            ("تنظیمات", "⚙️", 3),
-            ("درباره برنامه", "ℹ️", 4),
+            ("داشبورد", "nav-home", 0),
+            ("دستگاه‌های صوتی", "nav-devices", 1),
+            ("مدیریت بلوتوث", "nav-bluetooth", 2),
+            ("تنظیمات", "nav-settings", 3),
+            ("درباره برنامه", "nav-info", 4),
         ]
 
-        for text, icon, idx in nav_items:
-            btn = QPushButton(f"{icon}   {text}")
+        for text, icon_name, idx in nav_items:
+            btn = QPushButton(f"  {text}")
+            btn.setIcon(IconHelper.get_icon(icon_name))
+            btn.setIconSize(QSize(18, 18))
             btn.setProperty("nav", "true")
             btn.setFixedHeight(44)
             btn.clicked.connect(lambda checked=False, i=idx: self.switch_page(i))
@@ -157,7 +160,7 @@ class MainWindow(QMainWindow):
             self.audio_mgr, self.profile_mgr, self.config_mgr
         )
         self.page_bluetooth = BluetoothPage(
-            self.bt_mgr, self.config_mgr
+            self.bt_mgr, self.profile_mgr, self.config_mgr
         )
         self.page_settings = SettingsPage(
             self.config_mgr, self.detector, self.bt_mgr, self.autostart_svc

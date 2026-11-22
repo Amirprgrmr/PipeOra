@@ -3,10 +3,12 @@
 با محافظت در برابر حلقه بازخورد رویدادها (Feedback Loop Prevention) و دکمه‌های گام سریع
 """
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QSlider, QLabel, QPushButton
 )
+
+from app.ui.styles.icon_helper import IconHelper
 
 
 class VolumeSlider(QWidget):
@@ -26,11 +28,12 @@ class VolumeSlider(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
-        # دکمه بی‌صدا (Mute Toggle)
-        self.btn_mute = QPushButton("🔊")
+        # دکمه بی‌صدا (Mute Toggle) با آیکون وکتور SVG
+        self.btn_mute = QPushButton()
         self.btn_mute.setToolTip("قطع/وصل صدا")
         self.btn_mute.setProperty("icon_btn", "true")
         self.btn_mute.setFixedSize(36, 36)
+        self.btn_mute.setIconSize(QSize(20, 20))
         self.btn_mute.clicked.connect(self._on_mute_clicked)
         layout.addWidget(self.btn_mute)
 
@@ -63,6 +66,8 @@ class VolumeSlider(QWidget):
         self.lbl_percent.setStyleSheet("font-weight: bold; color: #F2F4F8;")
         layout.addWidget(self.lbl_percent)
 
+        self._update_mute_icon()
+
     def _on_slider_value_changed(self, value: int):
         self.lbl_percent.setText(f"{value}%")
         self._update_mute_icon()
@@ -83,18 +88,10 @@ class VolumeSlider(QWidget):
         self.slider.setValue(val)
 
     def _update_mute_icon(self):
-        if self._is_muted:
-            self.btn_mute.setText("🔇")
-            self.btn_mute.setStyleSheet("color: #EB7777;")
-        else:
-            val = self.slider.value()
-            if val == 0:
-                self.btn_mute.setText("🔈")
-            elif val < 50:
-                self.btn_mute.setText("🔉")
-            else:
-                self.btn_mute.setText("🔊")
-            self.btn_mute.setStyleSheet("")
+        val = self.slider.value()
+        icon = IconHelper.speaker_icon(val, self._is_muted)
+        self.btn_mute.setIcon(icon)
+        self.btn_mute.setText("")
 
     def set_volume(self, value: int):
         """تنظیم ولوم از منابع خارجی بدون بازخورد مکرر رویداد."""

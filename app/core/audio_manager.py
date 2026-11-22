@@ -92,6 +92,8 @@ class AudioManager:
 
             is_default = (sink_name == default_sink) or (f"@{sink_id}@" == default_sink)
 
+            card_name = props.get("device.name")
+
             device = SinkDevice(
                 id=sink_id,
                 name=sink_name,
@@ -102,6 +104,7 @@ class AudioManager:
                 is_default=is_default,
                 is_bluetooth=is_bt,
                 card_id=card_id,
+                card_name=card_name,
                 properties=props
             )
             devices.append(device)
