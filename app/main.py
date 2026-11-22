@@ -10,7 +10,8 @@ import signal
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QLocalServer, QLocalSocket
+from PySide6.QtCore import Qt
+from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtGui import QIcon, QFontDatabase, QFont
 from PySide6.QtWidgets import QApplication
 

@@ -208,7 +208,6 @@ QCheckBox::indicator:hover {
 QCheckBox::indicator:checked {
     background-color: #67C9F3;
     border-color: #67C9F3;
-    image: url(""); /* تیک در فرمت گرافیکی */
 }
 
 /* کمبوباکس */
