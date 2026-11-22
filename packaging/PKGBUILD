@@ -39,6 +39,14 @@ package() {
     install -Dm644 packaging/pipeora.svg \
         "$pkgdir/usr/share/icons/hicolor/scalable/apps/pipeora.svg"
 
+    # نصب آیکون‌های استاندارد در ابعاد مختلف
+    for res in 16 24 32 48 64 128 256 512; do
+        if [ -f "packaging/icons/${res}x${res}/pipeora.png" ]; then
+            install -Dm644 "packaging/icons/${res}x${res}/pipeora.png" \
+                "$pkgdir/usr/share/icons/hicolor/${res}x${res}/apps/pipeora.png"
+        fi
+    done
+
     # نصب فایل Desktop Entry
     install -Dm644 packaging/pipeora.desktop \
         "$pkgdir/usr/share/applications/pipeora.desktop"

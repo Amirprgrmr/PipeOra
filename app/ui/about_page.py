@@ -44,17 +44,17 @@ class AboutPage(QWidget):
         card_layout.setSpacing(16)
         card_layout.setAlignment(Qt.AlignCenter)
 
-        # لوگوی برنامه با وکتور SVG باکیفیت
+        # لوگوی اختصاصی PipeOra با وکتور SVG باکیفیت
         lbl_logo = QLabel()
-        lbl_logo.setFixedSize(72, 72)
+        lbl_logo.setFixedSize(76, 76)
         lbl_logo.setAlignment(Qt.AlignCenter)
-        lbl_logo.setPixmap(IconHelper.get_pixmap("headphones", 40))
+        lbl_logo.setPixmap(IconHelper.get_pixmap("pipeora", 48))
         lbl_logo.setStyleSheet("""
             QLabel {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(103, 201, 243, 0.2), stop:1 rgba(85, 207, 160, 0.2));
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(103, 201, 243, 0.25), stop:1 rgba(37, 99, 235, 0.25));
                 border: 2px solid #67C9F3;
-                border-radius: 36px;
-                padding: 12px;
+                border-radius: 20px;
+                padding: 10px;
             }
         """)
         card_layout.addWidget(lbl_logo, 0, Qt.AlignCenter)

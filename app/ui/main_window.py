@@ -96,12 +96,13 @@ class MainWindow(QMainWindow):
         lbl_logo = QLabel()
         lbl_logo.setFixedSize(38, 38)
         lbl_logo.setAlignment(Qt.AlignCenter)
-        lbl_logo.setPixmap(IconHelper.get_pixmap("headphones", 24))
+        lbl_logo.setPixmap(IconHelper.get_pixmap("pipeora", 28))
         lbl_logo.setStyleSheet("""
             QLabel {
-                background-color: rgba(103, 201, 243, 0.15);
-                border: 1px solid rgba(103, 201, 243, 0.4);
-                border-radius: 19px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(103, 201, 243, 0.2), stop:1 rgba(37, 99, 235, 0.2));
+                border: 1px solid rgba(103, 201, 243, 0.5);
+                border-radius: 12px;
+                padding: 4px;
             }
         """)
         brand_layout.addWidget(lbl_logo)

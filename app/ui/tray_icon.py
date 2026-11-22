@@ -31,7 +31,7 @@ class AppTrayIcon(QSystemTrayIcon):
         self.menu.setLayoutDirection(Qt.RightToLeft)
 
         # عنوان هدر
-        self.action_header = QAction("مدیریت صدای AM", self.menu)
+        self.action_header = QAction("PipeOra | مدیریت هوشمند صدا", self.menu)
         self.action_header.setEnabled(False)
         self.menu.addAction(self.action_header)
 
