@@ -1,0 +1,50 @@
+# Maintainer: Amirali Homayoonzadeh <me@Amirprgrmr.ir>
+# Contributor: amirprgrmr <https://amirprgrmr.ir>
+
+pkgname=am-audio-control
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="نرم‌افزار اختصاصی مدیریت خروجی صدا و دستگاه‌های بلوتوث لینوکس | Linux Exclusive Desktop Application"
+arch=('any')
+url="https://amirprgrmr.ir"
+license=('MIT')
+depends=(
+    'python>=3.11'
+    'pyside6'
+    'pipewire'
+    'wireplumber'
+    'bluez'
+    'libpulse'
+    'dbus-python'
+)
+makedepends=(
+    'python-build'
+    'python-installer'
+    'python-wheel'
+    'python-setuptools'
+)
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/$pkgname-$pkgver" 2>/dev/null || cd "$srcdir"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver" 2>/dev/null || cd "$srcdir"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+
+    # نصب آیکون باکیفیت وکتور SVG
+    install -Dm644 packaging/am-audio-control.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/am-audio-control.svg"
+
+    # نصب فایل Desktop Entry
+    install -Dm644 packaging/am-audio-control.desktop \
+        "$pkgdir/usr/share/applications/am-audio-control.desktop"
+
+    # نصب مستندات
+    install -Dm644 docs/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 docs/INSTALL.md "$pkgdir/usr/share/doc/$pkgname/INSTALL.md"
+    install -Dm644 docs/ARCHITECTURE.md "$pkgdir/usr/share/doc/$pkgname/ARCHITECTURE.md"
+}

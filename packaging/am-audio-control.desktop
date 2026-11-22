@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=AM Audio Control
+Name[fa]=مدیریت صدای AM
+GenericName=Audio & Bluetooth Output Manager
+GenericName[fa]=مدیریت خروجی صدا و بلوتوث
+Comment=Dedicated Linux Audio Output & Bluetooth Headphone Manager
+Comment[fa]=مدیریت اختصاصی خروجی صدا و دستگاه‌های صوتی بلوتوث لینوکس
+Exec=am-audio-control %u
+Icon=am-audio-control
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;Qt;
+Keywords=audio;sound;pipewire;volume;bluetooth;a2dp;mixer;
+StartupNotify=true
+StartupWMClass=AM Audio Control
+X-KDE-autostart-after=panel
