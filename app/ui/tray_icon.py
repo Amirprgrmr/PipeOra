@@ -78,11 +78,11 @@ class AppTrayIcon(QSystemTrayIcon):
             self.action_sink.setText(f"خروجی: {sink.display_name}")
             vol_text = f"{sink.volume_percent}٪"
             mute_icon = "🔇" if sink.mute else "🔊"
-            self.setToolTip(f"AM Audio Control\n{sink.display_name} ({vol_text})")
-            self.action_mute.setText(f"{mute_icon} قطع / وصل صدا ({vol_text})")
+            self.setToolTip(f"PipeOra\n{sink.display_name} ({vol_text})")
+            self.action_mute.setText(f"قطع / وصل صدا ({vol_text})")
         else:
             self.action_sink.setText("خروجی: یافت نشد")
-            self.setToolTip("AM Audio Control\nبدون خروجی صوتی فعال")
+            self.setToolTip("PipeOra\nبدون خروجی صوتی فعال")
 
     def _on_activated(self, reason):
         # با کلیک چپ یا فعال‌سازی تری، پنجره نمایش داده یا پنهان می‌شود

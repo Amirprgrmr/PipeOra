@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=PipeOra
+Name[fa]=مدیریت هوشمند صدای PipeOra
+GenericName=Audio & Bluetooth Output Manager
+GenericName[fa]=مدیریت خروجی صدا و بلوتوث
+Comment=Professional Linux Audio & Bluetooth Manager for PipeWire
+Comment[fa]=مدیریت پیشرفته و اختصاصی خروجی صدا و دستگاه‌های صوتی بلوتوث لینوکس
+Exec=pipeora %u
+Icon=pipeora
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;Qt;
+Keywords=pipeora;audio;sound;pipewire;wireplumber;volume;bluetooth;a2dp;mixer;
+StartupNotify=true
+StartupWMClass=PipeOra
+X-KDE-autostart-after=panel

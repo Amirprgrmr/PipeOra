@@ -31,3 +31,18 @@ def test_config_manager_corrupted_json_recovery(tmp_path):
     cfg = ConfigManager(config_path=str(config_file))
     # Should safely recover with defaults and not crash
     assert cfg.get("prefer_a2dp") is True
+
+
+def test_config_manager_migration(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    old_dir = tmp_path / "am-audio-control"
+    old_dir.mkdir(parents=True)
+    old_file = old_dir / "config.json"
+    old_file.write_text(json.dumps({"favorite_device": "11:22:33:44:55:66", "prefer_a2dp": False}), encoding="utf-8")
+
+    cfg = ConfigManager()
+    assert cfg.config_path == tmp_path / "pipeora" / "config.json"
+    assert cfg.get("favorite_device") == "11:22:33:44:55:66"
+    assert cfg.get("prefer_a2dp") is False
+    assert (tmp_path / "pipeora" / "config.json").exists()
+

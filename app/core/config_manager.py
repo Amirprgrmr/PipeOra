@@ -1,11 +1,13 @@
 """
-مدیریت ذخیره و بازیابی تنظیمات نرم‌افزار AM Audio Control
-ذخیره‌سازی با فرمت استاندارد JSON در مسیر استاندارد XDG (~/.config/am-audio-control/config.json)
+مدیریت ذخیره و بازیابی تنظیمات نرم‌افزار PipeOra
+ذخیره‌سازی با فرمت استاندارد JSON در مسیر استاندارد XDG (~/.config/pipeora/config.json)
+همراه با مهاجرت خودکار تنظیمات قبلی
 """
 
 import json
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -23,17 +25,29 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
 
 class ConfigManager:
-    """مدیریت پایدار تنظیمات کاربر با قابلیت اطمینان و بازیابی خودکار."""
+    """مدیریت پایدار تنظیمات کاربر با قابلیت اطمینان، بازیابی خودکار و مهاجرت شفاف."""
 
     def __init__(self, config_path: Optional[str] = None):
         if config_path:
             self.config_path = Path(config_path)
         else:
             config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-            self.config_path = Path(config_home) / "am-audio-control" / "config.json"
+            self.config_path = Path(config_home) / "pipeora" / "config.json"
+            self._migrate_old_config(Path(config_home))
 
         self._data: Dict[str, Any] = dict(DEFAULT_CONFIG)
         self.load()
+
+    def _migrate_old_config(self, config_home: Path) -> None:
+        """مهاجرت شفاف تنظیمات نسخه قبلی در صورت وجود."""
+        old_path = config_home / "am-audio-control" / "config.json"
+        if old_path.exists() and not self.config_path.exists():
+            try:
+                self.config_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(old_path, self.config_path)
+                logger.info("تنظیمات قبلی از %s به %s مهاجرت داده شد.", old_path, self.config_path)
+            except Exception as e:
+                logger.warning("خطا در مهاجرت تنظیمات قبلی: %s", e)
 
     def load(self) -> None:
         """بارگذاری تنظیمات از فایل JSON دیسک."""

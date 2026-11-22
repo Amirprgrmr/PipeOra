@@ -1,12 +1,12 @@
 # Maintainer: Amirali Homayoonzadeh <me@Amirprgrmr.ir>
 # Contributor: amirprgrmr <https://amirprgrmr.ir>
 
-pkgname=am-audio-control
+pkgname=pipeora
 pkgver=1.0.0
 pkgrel=1
-pkgdesc="نرم‌افزار اختصاصی مدیریت خروجی صدا و دستگاه‌های بلوتوث لینوکس | Linux Exclusive Desktop Application"
+pkgdesc="PipeOra - Professional Linux Audio & Bluetooth Output Manager for PipeWire"
 arch=('any')
-url="https://amirprgrmr.ir"
+url="https://github.com/Amirprgrmr/PipeOra"
 license=('MIT')
 depends=(
     'python>=3.11'
@@ -36,15 +36,17 @@ package() {
     python -m installer --destdir="$pkgdir" dist/*.whl
 
     # نصب آیکون باکیفیت وکتور SVG
-    install -Dm644 packaging/am-audio-control.svg \
-        "$pkgdir/usr/share/icons/hicolor/scalable/apps/am-audio-control.svg"
+    install -Dm644 packaging/pipeora.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/pipeora.svg"
 
     # نصب فایل Desktop Entry
-    install -Dm644 packaging/am-audio-control.desktop \
-        "$pkgdir/usr/share/applications/am-audio-control.desktop"
+    install -Dm644 packaging/pipeora.desktop \
+        "$pkgdir/usr/share/applications/pipeora.desktop"
 
-    # نصب مستندات
-    install -Dm644 docs/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
-    install -Dm644 docs/INSTALL.md "$pkgdir/usr/share/doc/$pkgname/INSTALL.md"
-    install -Dm644 docs/ARCHITECTURE.md "$pkgdir/usr/share/doc/$pkgname/ARCHITECTURE.md"
+    # نصب مستندات و لایسنس
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md" 2>/dev/null || true
+    install -Dm644 docs/README.md "$pkgdir/usr/share/doc/$pkgname/README_fa.md" 2>/dev/null || true
+    install -Dm644 docs/INSTALL.md "$pkgdir/usr/share/doc/$pkgname/INSTALL.md" 2>/dev/null || true
+    install -Dm644 docs/ARCHITECTURE.md "$pkgdir/usr/share/doc/$pkgname/ARCHITECTURE.md" 2>/dev/null || true
 }

@@ -38,7 +38,7 @@ def test_main_window_creation(qapp, tmp_path):
         app_icon=QIcon()
     )
     assert win is not None
-    assert win.windowTitle() == "AM Audio Control | مدیریت صدای AM"
+    assert win.windowTitle() == "PipeOra | مدیریت پیشرفته صدای لینوکس"
 
     # Test page switching
     win.switch_page(1)
@@ -47,6 +47,10 @@ def test_main_window_creation(qapp, tmp_path):
     assert win.stacked_widget.currentIndex() == 2
     win.switch_page(0)
     assert win.stacked_widget.currentIndex() == 0
+
+    if hasattr(win, "event_worker"):
+        win.event_worker.stop()
+    win.close()
 
     # Clean shutdown
     win.quit_application()

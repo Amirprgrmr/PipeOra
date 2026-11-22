@@ -60,17 +60,17 @@ class AboutPage(QWidget):
         card_layout.addWidget(lbl_logo, 0, Qt.AlignCenter)
 
         # نام و نسخه
-        lbl_app_name = QLabel("AM Audio Control")
-        lbl_app_name.setStyleSheet("font-size: 22px; font-weight: bold; color: #F2F4F8;")
+        lbl_app_name = QLabel("PipeOra")
+        lbl_app_name.setStyleSheet("font-size: 24px; font-weight: bold; color: #F2F4F8; letter-spacing: 0.5px;")
         card_layout.addWidget(lbl_app_name, 0, Qt.AlignCenter)
 
-        lbl_persian_name = QLabel("مدیریت صدای AM | نسخه ۱.۰.۰")
+        lbl_persian_name = QLabel("PipeOra | نسخه ۱.۰.۰ (رسمی)")
         lbl_persian_name.setStyleSheet("font-size: 14px; font-weight: 600; color: #67C9F3;")
         card_layout.addWidget(lbl_persian_name, 0, Qt.AlignCenter)
 
         lbl_desc = QLabel(
-            "نرم‌افزار دسکتاپ بومی و اختصاصی مدیریت خروجی صدا و تجهیزات صوتی بلوتوث برای لینوکس.\n"
-            "طراحی‌شده اختصاصی برای توزیع Parch Linux و Arch Linux در محیط KDE Plasma (Wayland)."
+            "نرم‌افزار دسکتاپ بومی و اختصاصی مدیریت پیشرفته خروجی صدا و تجهیزات بلوتوث در لینوکس.\n"
+            "توسعه‌یافته بر پایه PipeWire و WirePlumber برای توزیع‌های Parch Linux و Arch Linux در محیط KDE Plasma (Wayland)."
         )
         lbl_desc.setAlignment(Qt.AlignCenter)
         lbl_desc.setStyleSheet("color: #A6AFBD; font-size: 13px; line-height: 1.6;")
@@ -105,6 +105,10 @@ class AboutPage(QWidget):
         btn_site.setProperty("primary", "true")
         btn_site.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://amirprgrmr.ir")))
         links_layout.addWidget(btn_site)
+
+        btn_github = QPushButton("مخزن گیت‌هاب (GitHub)")
+        btn_github.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/Amirprgrmr/PipeOra")))
+        links_layout.addWidget(btn_github)
 
         btn_tg = QPushButton("کانال / ارتباط تلگرام")
         btn_tg.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://t.me/Amirprgrmr")))

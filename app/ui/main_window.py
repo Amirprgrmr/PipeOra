@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(100, self.refresh_all_pages)
 
     def _init_window(self):
-        self.setWindowTitle("AM Audio Control | مدیریت صدای AM")
+        self.setWindowTitle("PipeOra | مدیریت پیشرفته صدای لینوکس")
         self.setWindowIcon(self.app_icon)
         self.resize(1000, 660)
         self.setMinimumSize(860, 560)
@@ -109,12 +109,12 @@ class MainWindow(QMainWindow):
         brand_text_layout = QVBoxLayout()
         brand_text_layout.setSpacing(2)
 
-        lbl_brand_name = QLabel("AM Audio Control")
-        lbl_brand_name.setStyleSheet("font-size: 14px; font-weight: bold; color: #F2F4F8;")
+        lbl_brand_name = QLabel("PipeOra")
+        lbl_brand_name.setStyleSheet("font-size: 15px; font-weight: bold; color: #F2F4F8; letter-spacing: 0.5px;")
         brand_text_layout.addWidget(lbl_brand_name)
 
-        lbl_brand_sub = QLabel("مدیریت صدای لینوکس")
-        lbl_brand_sub.setStyleSheet("font-size: 11px; color: #67C9F3;")
+        lbl_brand_sub = QLabel("مدیریت هوشمند صدا و بلوتوث")
+        lbl_brand_sub.setStyleSheet("font-size: 10px; color: #67C9F3;")
         brand_text_layout.addWidget(lbl_brand_sub)
 
         brand_layout.addLayout(brand_text_layout)
@@ -310,7 +310,7 @@ class MainWindow(QMainWindow):
             self.hide()
             if self.tray_icon.isVisible():
                 self.tray_icon.showMessage(
-                    "AM Audio Control",
+                    "PipeOra",
                     "برنامه در سینی سیستم به فعالیت خود ادامه می‌دهد.",
                     QIcon(self.app_icon),
                     2000

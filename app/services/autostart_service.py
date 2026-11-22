@@ -12,16 +12,17 @@ logger = logging.getLogger(__name__)
 
 DESKTOP_TEMPLATE = """[Desktop Entry]
 Type=Application
-Name=AM Audio Control
-Name[fa]=مدیریت صدای AM
-Comment=Linux Audio Output and Bluetooth Manager
-Comment[fa]=مدیریت اختصاصی خروجی صدا و دستگاه‌های بلوتوث لینوکس
+Name=PipeOra
+Name[fa]=مدیریت هوشمند صدای PipeOra
+Comment=Professional Linux Audio & Bluetooth Manager for PipeWire
+Comment[fa]=مدیریت پیشرفته و اختصاصی خروجی صدا و بلوتوث لینوکس
 Exec={exec_cmd}
 Icon={icon_path}
 Terminal=false
 Categories=AudioVideo;Audio;Mixer;
 X-GNOME-Autostart-enabled=true
 X-KDE-autostart-after=panel
+StartupWMClass=PipeOra
 """
 
 
@@ -35,13 +36,13 @@ class AutostartService:
             config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
             self.autostart_dir = Path(config_home) / "autostart"
 
-        self.desktop_file = self.autostart_dir / "am-audio-control.desktop"
+        self.desktop_file = self.autostart_dir / "pipeora.desktop"
 
     def is_enabled(self) -> bool:
         """بررسی وجود فایل autostart برای برنامه."""
         return self.desktop_file.exists()
 
-    def enable(self, exec_path: Optional[str] = None, icon_path: str = "am-audio-control") -> bool:
+    def enable(self, exec_path: Optional[str] = None, icon_path: str = "pipeora") -> bool:
         """ایجاد فایل autostart برای اجرای خودکار در ورود به سیستم."""
         if not exec_path:
             # اگر اسکریپت در مخزن یا سیستم نصب شده است

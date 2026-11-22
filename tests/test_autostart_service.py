@@ -9,15 +9,15 @@ def test_autostart_enable_and_disable(tmp_path):
     assert service.is_enabled() is False
     
     # Enable
-    res = service.enable(exec_path="/usr/bin/am-audio-control")
+    res = service.enable(exec_path="/usr/bin/pipeora")
     assert res is True
     assert service.is_enabled() is True
     
-    desktop_file = autostart_dir / "am-audio-control.desktop"
+    desktop_file = autostart_dir / "pipeora.desktop"
     assert desktop_file.exists()
     content = desktop_file.read_text(encoding="utf-8")
-    assert "Exec=/usr/bin/am-audio-control" in content
-    assert "Name=AM Audio Control" in content
+    assert "Exec=/usr/bin/pipeora" in content
+    assert "Name=PipeOra" in content
     
     # Disable
     res_dis = service.disable()

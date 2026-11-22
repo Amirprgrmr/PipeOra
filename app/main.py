@@ -1,5 +1,5 @@
 """
-نقطه ورود اصلی نرم‌افزار AM Audio Control
+نقطه ورود اصلی نرم‌افزار PipeOra
 مدیریت Single Instance، بارگذاری استایل‌شیت Graphite Dark، فونت‌ها و سینی سیستم
 """
 
@@ -28,9 +28,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
-logger = logging.getLogger("am_audio_control")
+logger = logging.getLogger("pipeora")
 
-SOCKET_NAME = "am_audio_control_single_instance_socket"
+SOCKET_NAME = f"pipeora_single_instance_{os.getuid() if hasattr(os, 'getuid') else 'socket'}"
 
 
 class SingleInstanceApp:
@@ -103,14 +103,14 @@ def load_stylesheet() -> str:
 def main():
     """تابع اصلی راه‌اندازی و اجرای برنامه دسکتاپ."""
     # آرگومان‌های خط فرمان
-    parser = argparse.ArgumentParser(description="AM Audio Control - مدیریت صدای لینوکس")
+    parser = argparse.ArgumentParser(description="PipeOra - مدیریت پیشرفته و هوشمند صدای لینوکس")
     parser.add_argument("--minimized", action="store_true", help="اجرای مستقیم در سینی سیستم (بدون نمایش اولیه پنجره)")
     parser.add_argument("--version", action="store_true", help="نمایش نسخه برنامه")
     args = parser.parse_args()
 
     if args.version:
         from app import __version__
-        print(f"AM Audio Control v{__version__}")
+        print(f"PipeOra v{__version__}")
         sys.exit(0)
 
     # بررسی اجرای نسخه تکراری
@@ -121,9 +121,10 @@ def main():
     # تنظیمات Qt
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
     app = QApplication(sys.argv)
-    app.setApplicationName("AM Audio Control")
+    app.setApplicationName("PipeOra")
+    app.setApplicationDisplayName("PipeOra")
     app.setOrganizationName("Amirali")
-    app.setDesktopFileName("am-audio-control")
+    app.setDesktopFileName("pipeora")
 
     # قانون اساسی: رابط کاملاً راست‌چین فارسی
     app.setLayoutDirection(Qt.RightToLeft)
@@ -135,8 +136,17 @@ def main():
         app.setStyleSheet(qss)
 
     # آیکون برنامه
-    icon_path = Path(__file__).resolve().parent / "resources" / "icons" / "app_icon.svg"
-    app_icon = QIcon(str(icon_path)) if icon_path.exists() else QIcon()
+    icons_dir = Path(__file__).resolve().parent / "resources" / "icons"
+    icon_candidates = [
+        icons_dir / "pipeora.svg",
+        Path(__file__).resolve().parent.parent / "packaging" / "pipeora.svg",
+        icons_dir / "app_icon.svg"
+    ]
+    app_icon = QIcon()
+    for cand in icon_candidates:
+        if cand.exists():
+            app_icon = QIcon(str(cand))
+            break
     app.setWindowIcon(app_icon)
 
     # ایجاد سرویس‌ها و منیجرها

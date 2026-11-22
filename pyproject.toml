@@ -3,16 +3,16 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "am-audio-control"
+name = "pipeora"
 version = "1.0.0"
-description = "نرم‌افزار اختصاصی مدیریت خروجی صدا و دستگاه‌های بلوتوث لینوکس"
-readme = "docs/README.md"
+description = "PipeOra - مدیریت پیشرفته و هوشمند خروجی صدا و دستگاه‌های بلوتوث در لینوکس (PipeWire & WirePlumber)"
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [
     { name = "Amirali Homayoonzadeh", email = "me@Amirprgrmr.ir" }
 ]
 license = { text = "MIT" }
-keywords = ["pipewire", "wireplumber", "bluez", "audio", "bluetooth", "pyside6", "parch-linux", "arch-linux"]
+keywords = ["pipeora", "pipewire", "wireplumber", "bluez", "audio", "bluetooth", "pyside6", "parch-linux", "arch-linux"]
 classifiers = [
     "Environment :: X11 Applications :: Qt",
     "Operating System :: POSIX :: Linux",
@@ -24,6 +24,11 @@ dependencies = [
     "pytest>=8.0.0",
 ]
 
+[project.urls]
+Homepage = "https://amirprgrmr.ir"
+Repository = "https://github.com/Amirprgrmr/PipeOra"
+Issues = "https://github.com/Amirprgrmr/PipeOra/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
@@ -31,7 +36,7 @@ dev = [
 ]
 
 [project.scripts]
-am-audio-control = "app.main:main"
+pipeora = "app.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
