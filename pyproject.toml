@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "am-audio-control"
+version = "1.0.0"
+description = "نرم‌افزار اختصاصی مدیریت خروجی صدا و دستگاه‌های بلوتوث لینوکس"
+readme = "docs/README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Amirali Homayoonzadeh", email = "me@Amirprgrmr.ir" }
+]
+license = { text = "MIT" }
+keywords = ["pipewire", "wireplumber", "bluez", "audio", "bluetooth", "pyside6", "parch-linux", "arch-linux"]
+classifiers = [
+    "Environment :: X11 Applications :: Qt",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Mixers",
+]
+dependencies = [
+    "pyside6>=6.8.0",
+    "pytest>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-qt>=4.4.0",
+]
+
+[project.scripts]
+am-audio-control = "app.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
