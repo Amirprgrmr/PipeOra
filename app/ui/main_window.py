@@ -58,6 +58,12 @@ class MainWindow(QMainWindow):
         self._nav_buttons = []
         self._is_quitting = False
 
+        # تایمر ضد جهش و تجمیع رویدادهای PipeWire (Event Coalescing Debounce)
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.setInterval(75)
+        self._refresh_timer.timeout.connect(self._do_coalesced_refresh)
+
         self._init_window()
         self._init_ui()
         self._init_tray()
@@ -238,15 +244,19 @@ class MainWindow(QMainWindow):
             self.page_settings.refresh_data()
 
     def _on_sink_event(self, event_text: str):
-        default_sink = self.audio_mgr.get_default_sink()
-        self.tray_icon.update_status(default_sink)
-        self.page_dashboard.refresh_data()
-        if self.stacked_widget.currentIndex() == 1:
-            self.page_devices.refresh_data()
+        self._refresh_timer.start()
 
     def _on_server_event(self):
+        self._refresh_timer.start()
+
+    def _on_card_event(self, event_text: str):
+        self._refresh_timer.start()
+
+    def _do_coalesced_refresh(self):
+        """اجرای متمرکز و بهینه به‌روزرسانی رابط کاربری بدون بار پردازشی تکراری."""
         default_sink = self.audio_mgr.get_default_sink()
-        self.tray_icon.update_status(default_sink)
+        if hasattr(self, "tray_icon"):
+            self.tray_icon.update_status(default_sink)
         self.page_dashboard.refresh_data()
         if self.stacked_widget.currentIndex() == 1:
             self.page_devices.refresh_data()
@@ -254,10 +264,6 @@ class MainWindow(QMainWindow):
     def _on_stream_event(self):
         if self.stacked_widget.currentIndex() == 1:
             self.page_devices._update_apps()
-
-    def _on_card_event(self, event_text: str):
-        if self.stacked_widget.currentIndex() in (0, 1):
-            self.refresh_all_pages()
 
     def _on_bluetooth_event(self):
         """رسیدگی به تغییرات وضعیت بلوتوث و اتصال خودکار به هدفون محبوب."""

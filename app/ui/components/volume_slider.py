@@ -3,7 +3,7 @@
 با محافظت در برابر حلقه بازخورد رویدادها (Feedback Loop Prevention) و دکمه‌های گام سریع
 """
 
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QSlider, QLabel, QPushButton
 )
@@ -12,7 +12,7 @@ from app.ui.styles.icon_helper import IconHelper
 
 
 class VolumeSlider(QWidget):
-    """اسلایدر پیشرفته کنترل صدا با دکمه Mute، درصد زنده و کلیدهای تنظیم گام."""
+    """اسلایدر پیشرفته کنترل صدا با دکمه Mute، درصد زنده، دیبانس هوشمند و کلیدهای تنظیم گام."""
 
     volume_changed = Signal(int)    # ارسال درصد تغییریافته صدا (۰ تا ۱۰۰) توسط کاربر
     mute_toggled = Signal(bool)     # ارسال رویداد قطع/وصل صدا
@@ -21,6 +21,14 @@ class VolumeSlider(QWidget):
         super().__init__(parent)
         self._is_updating_ui = False
         self._is_muted = False
+        self._pending_volume = 70
+
+        # تایمر کنترل نرخ ارسال رویداد ولوم برای جلوگیری از اسپم کردن PipeWire
+        self._debounce_timer = QTimer(self)
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.setInterval(25)
+        self._debounce_timer.timeout.connect(self._emit_debounced_volume)
+
         self._init_ui()
 
     def _init_ui(self):
@@ -50,6 +58,7 @@ class VolumeSlider(QWidget):
         self.slider.setValue(70)
         self.slider.setTracking(True)
         self.slider.valueChanged.connect(self._on_slider_value_changed)
+        self.slider.sliderReleased.connect(self._on_slider_released)
         layout.addWidget(self.slider, 1)
 
         # دکمه افزایش گامی (+5%)
@@ -72,7 +81,21 @@ class VolumeSlider(QWidget):
         self.lbl_percent.setText(f"{value}%")
         self._update_mute_icon()
         if not self._is_updating_ui:
-            self.volume_changed.emit(value)
+            self._pending_volume = value
+            if self.slider.isSliderDown():
+                self._debounce_timer.start()
+            else:
+                self._emit_debounced_volume()
+
+    def _on_slider_released(self):
+        """ارسال آنی آخرین مقدار در لحظه رها کردن ماوس."""
+        if self._debounce_timer.isActive():
+            self._debounce_timer.stop()
+        self._emit_debounced_volume()
+
+    def _emit_debounced_volume(self):
+        if not self._is_updating_ui:
+            self.volume_changed.emit(self._pending_volume)
 
     def _on_mute_clicked(self):
         new_mute = not self._is_muted

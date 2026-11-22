@@ -15,7 +15,7 @@ class SystemDetector:
     REQUIRED_TOOLS = ["wpctl", "pactl", "pw-dump", "bluetoothctl"]
 
     def __init__(self):
-        pass
+        self._cached_tools: Dict[str, bool] = {}
 
     def check_service(self, service_name: str, is_user: bool = True) -> bool:
         """بررسی فعال بودن یک سرویس systemd بدون استفاده از shell."""
@@ -52,9 +52,11 @@ class SystemDetector:
         """بررسی سرویس بلوتوث سیستم (BlueZ)."""
         return self.check_service("bluetooth", is_user=False)
 
-    def check_tools(self) -> Dict[str, bool]:
-        """بررسی وجود ابزارهای خط فرمان ضروری در سیستم."""
-        return {tool: shutil.which(tool) is not None for tool in self.REQUIRED_TOOLS}
+    def check_tools(self, force_refresh: bool = False) -> Dict[str, bool]:
+        """بررسی وجود ابزارهای خط فرمان ضروری در سیستم با کش‌گذاری بهینه."""
+        if not self._cached_tools or force_refresh:
+            self._cached_tools = {tool: shutil.which(tool) is not None for tool in self.REQUIRED_TOOLS}
+        return dict(self._cached_tools)
 
     def get_system_health(self) -> Dict[str, Any]:
         """ارائه گزارش کامل و ساختاریافته از سلامت زیرساخت سیستم."""
