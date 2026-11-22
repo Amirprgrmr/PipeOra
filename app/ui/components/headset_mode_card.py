@@ -200,7 +200,7 @@ class HeadsetModeCard(QFrame):
             self.btn_select_hfp.setText("فعال‌سازی میکروفن و تماس")
             self.btn_select_hfp.setEnabled(True)
 
-            self.lbl_notice.setText("💡 در حالت فعلی، کیفیت پخش صدا در حداکثر توان است. برای مکالمه در تلگرام/میت از میکروفن داخلی سیستم استفاده خواهد شد تا صدای هدفون افت نکند.")
+            self.lbl_notice.setText("💡 کیفیت پخش استریوی ۴۸ کیلوهرتز فعال است. ورودی سیستم به صورت خودکار به میکروفن داخلی لپ‌تاپ منتقل شده تا پخش موسیقی بدون پرش و با بالاترین کیفیت پایدار بماند.")
 
         elif mode == "hfp":
             self.badge_active.set_variant("warning", "حالت مکالمه HFP (میکروفن فعال)")
@@ -229,13 +229,26 @@ class HeadsetModeCard(QFrame):
             self.btn_select_a2dp.setText("بازگشت به کیفیت عالی موسیقی")
             self.btn_select_a2dp.setEnabled(True)
 
-            self.lbl_notice.setText("⚠️ میکروفن هدفون اکنون فعال است. به دلیل محدودیت استاندارد بلوتوث، صدای خروجی موقتاً در حالت مونو/مکالمه قرار دارد. پس از پایان تماس می‌توانید به کیفیت استریو بازگردید.")
+            self.lbl_notice.setText("🎙️ میکروفن هدفون اکنون فعال و به عنوان ورودی اصلی سیستم و برنامه‌ها تنظیم شد. خروجی صدا موقتاً در حالت مکالمه قرار دارد و پس از پایان تماس می‌توانید به کیفیت استریو برگردید.")
 
     def _select_mode(self, mode: str):
         if not self._card_id:
             return
 
+        # نمایش وضعیت گذار
+        if mode == "a2dp":
+            self.btn_select_a2dp.setText("در حال انتقال ورودی و سوییچ...")
+        else:
+            self.btn_select_hfp.setText("در حال فعال‌سازی میکروفن...")
+
+        self.btn_select_a2dp.setEnabled(False)
+        self.btn_select_hfp.setEnabled(False)
+
         success = self.profile_mgr.set_headset_mode(self._card_id, mode)
         if success:
             self._update_ui_state(mode)
             self.mode_changed.emit(mode)
+        else:
+            # بازیابی حالت قبلی در صورت بروز خطا
+            current_mode = self.profile_mgr.get_headset_mode(self._card_id)
+            self._update_ui_state(current_mode)
