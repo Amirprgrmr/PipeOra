@@ -125,3 +125,57 @@ def test_set_default_sink():
             check=False,
             timeout=2.0
         )
+
+
+SAMPLE_SOURCES_JSON = json.dumps([
+    {
+        "index": 54,
+        "name": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor",
+        "description": "Monitor of Built-in Audio Analog Stereo"
+    },
+    {
+        "index": 55,
+        "name": "alsa_input.pci-0000_00_1f.3.analog-stereo",
+        "description": "Built-in Audio Analog Stereo"
+    },
+    {
+        "index": 2639,
+        "name": "bluez_input.84:AC:60:C9:02:74",
+        "description": "QCY T13 ANC2"
+    }
+])
+
+SAMPLE_SOURCE_OUTPUTS_JSON = json.dumps([
+    {
+        "index": 7669,
+        "source": 2639,
+        "properties": {
+            "application.name": "Antigravity"
+        }
+    }
+])
+
+
+def test_fallback_source_detection_and_stream_migration():
+    manager = AudioManager()
+    with patch("subprocess.run") as mock_run:
+        def side_effect(cmd, **kwargs):
+            if "sources" in cmd:
+                return MagicMock(returncode=0, stdout=SAMPLE_SOURCES_JSON)
+            elif "source-outputs" in cmd:
+                return MagicMock(returncode=0, stdout=SAMPLE_SOURCE_OUTPUTS_JSON)
+            return MagicMock(returncode=0, stdout="")
+
+        mock_run.side_effect = side_effect
+
+        fallback = manager.get_hardware_fallback_source()
+        assert fallback == "alsa_input.pci-0000_00_1f.3.analog-stereo"
+
+        # Test set default source
+        res_src = manager.set_default_source(fallback)
+        assert res_src is True
+
+        # Test move recording streams
+        moved_count = manager.move_recording_streams(fallback)
+        assert moved_count == 1
+

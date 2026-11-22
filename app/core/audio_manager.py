@@ -231,3 +231,81 @@ class AudioManager:
         """انتقال خروجی صدای یک برنامه به خروجی دیگر."""
         res = self._run_cmd(["pactl", "move-sink-input", str(input_id), str(sink_name_or_id)])
         return res is not None
+
+    def get_hardware_fallback_source(self) -> Optional[str]:
+        """
+        یافتن منبع ورودی صوتی سخت‌افزاری پایدار (میکروفن داخلی لپ‌تاپ).
+        برای جلوگیری از وابستگی پایپ‌وایر به میکروفن هدفون بلوتوث هنگام سوییچ به A2DP.
+        """
+        out = self._run_cmd(["pactl", "-f", "json", "list", "sources"])
+        if not out:
+            return None
+
+        try:
+            sources_data = json.loads(out)
+        except json.JSONDecodeError:
+            return None
+
+        candidates = []
+        for s in sources_data:
+            name = s.get("name", "")
+            # چشم‌پوشی از مانیتور خروجی‌ها و دستگاه‌های بلوتوث
+            if "monitor" in name.lower() or "bluez" in name.lower():
+                continue
+            candidates.append(name)
+
+        if not candidates:
+            return None
+
+        # اولویت با کارت‌های سخت‌افزاری PCI/ALSA داخلی
+        for c in candidates:
+            if "pci" in c.lower() and "analog" in c.lower():
+                return c
+        for c in candidates:
+            if "alsa_input" in c.lower():
+                return c
+
+        return candidates[0]
+
+    def set_default_source(self, source_name_or_id: str) -> bool:
+        """تنظیم منبع صوتی پیش‌فرض سیستم (میکروفن)."""
+        clean_target = str(source_name_or_id).strip()
+        res = self._run_cmd(["pactl", "set-default-source", clean_target])
+        if res is not None:
+            return True
+        if clean_target.isdigit():
+            wp_res = self._run_cmd(["wpctl", "set-default", clean_target])
+            return wp_res is not None
+        return False
+
+    def move_recording_streams(self, target_source: str, from_source: Optional[str] = None) -> int:
+        """
+        انتقال بلادرنگ استریم‌های ضبط فعال (source-outputs) به ورودی مشخص شده.
+        این کار مانع از قطع تماس‌ها یا ارور در برنامه‌های در حال ضبط می‌شود.
+        """
+        out = self._run_cmd(["pactl", "-f", "json", "list", "source-outputs"])
+        if not out:
+            return 0
+
+        try:
+            streams_data = json.loads(out)
+        except json.JSONDecodeError:
+            return 0
+
+        moved_count = 0
+        clean_target = str(target_source).strip()
+
+        for st in streams_data:
+            st_idx = st.get("index")
+            current_src = str(st.get("source"))
+
+            # در صورت فیلتر بر روی سورس مبدا
+            if from_source and str(from_source) != current_src:
+                continue
+
+            res = self._run_cmd(["pactl", "move-source-output", str(st_idx), clean_target])
+            if res is not None:
+                moved_count += 1
+
+        return moved_count
+
