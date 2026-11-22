@@ -66,33 +66,40 @@ def test_set_card_profile():
 
 
 def test_headset_mode_switching():
-    mgr = ProfileManager()
+    mock_audio_mgr = MagicMock()
+    mock_audio_mgr.get_hardware_fallback_source.return_value = "alsa_input.pci-0000_00_1f.3.analog-stereo"
+    mock_audio_mgr.set_default_source.return_value = True
+    mock_audio_mgr.move_recording_streams.return_value = 1
+
+    mgr = ProfileManager(audio_mgr=mock_audio_mgr)
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout=SAMPLE_CARDS_JSON)
+        def side_effect(cmd, **kwargs):
+            if "list" in cmd and "cards" in cmd:
+                return MagicMock(returncode=0, stdout=SAMPLE_CARDS_JSON)
+            elif "list" in cmd and "sources" in cmd:
+                sample_sources = json.dumps([
+                    {"index": 55, "name": "alsa_input.pci-0000_00_1f.3.analog-stereo"},
+                    {"index": 2639, "name": "bluez_input.84:AC:60:C9:02:74"}
+                ])
+                return MagicMock(returncode=0, stdout=sample_sources)
+            return MagicMock(returncode=0, stdout="")
+
+        mock_run.side_effect = side_effect
 
         # Currently active is a2dp-sink in SAMPLE_CARDS_JSON
         mode = mgr.get_headset_mode("110")
         assert mode == "a2dp"
         assert mgr.has_headset_modes("110") is True
 
-        # Switch to hfp
+        # Switch to hfp: should set profile, and then update default source to bluez_input
         res_hfp = mgr.set_headset_mode("110", "hfp")
         assert res_hfp is True
-        mock_run.assert_called_with(
-            ["pactl", "set-card-profile", "bluez_card.84_AC_60_C9_02_74", "headset-head-unit"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=3.0
-        )
+        mock_audio_mgr.set_default_source.assert_called_with("bluez_input.84:AC:60:C9:02:74")
+        mock_audio_mgr.move_recording_streams.assert_called_with("bluez_input.84:AC:60:C9:02:74")
 
-        # Switch to a2dp
+        # Switch to a2dp: should set default source to fallback mic first, move streams, and set a2dp
         res_a2dp = mgr.set_headset_mode("110", "a2dp")
         assert res_a2dp is True
-        mock_run.assert_called_with(
-            ["pactl", "set-card-profile", "bluez_card.84_AC_60_C9_02_74", "a2dp-sink"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=3.0
-        )
+        mock_audio_mgr.set_default_source.assert_called_with("alsa_input.pci-0000_00_1f.3.analog-stereo")
+        mock_audio_mgr.move_recording_streams.assert_called_with("alsa_input.pci-0000_00_1f.3.analog-stereo")
+

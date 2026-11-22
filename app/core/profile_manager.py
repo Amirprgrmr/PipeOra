@@ -6,8 +6,9 @@
 import json
 import logging
 import subprocess
+import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,18 @@ class AudioProfile:
 
 
 class ProfileManager:
-    """مدیریت و سوئیچ پروفایل‌های صوتی در سطح کارت‌های پایپ‌وایر."""
+    """مدیریت و سوئیچ پروفایل‌های صوتی در سطح کارت‌های پایپ‌وایر با اتوماسیون هوشمند ورودی میکروفن."""
 
-    def __init__(self):
-        pass
+    def __init__(self, audio_mgr: Optional[Any] = None):
+        self._audio_mgr = audio_mgr
+
+    @property
+    def audio_manager(self):
+        """دسترسی با بارگذاری تنبل به AudioManager."""
+        if self._audio_mgr is None:
+            from app.core.audio_manager import AudioManager
+            self._audio_mgr = AudioManager()
+        return self._audio_mgr
 
     def _run_cmd(self, cmd: List[str], timeout: float = 3.0) -> Optional[str]:
         """اجرای ایمن دستورات خط فرمان با مدیریت خطای کامل."""
@@ -198,22 +207,71 @@ class ProfileManager:
                     return "hfp"
         return "other"
 
+    def _find_bluetooth_source(self, card_id_or_name: str, max_retries: int = 15, delay: float = 0.05) -> Optional[str]:
+        """یافتن منبع ورودی میکروفن بلوتوث (bluez_input) پس از تغییر پروفایل به HFP."""
+        target_str = str(card_id_or_name).strip()
+        clean_mac = target_str.replace(":", "_").lower()
+
+        for _ in range(max_retries):
+            out = self._run_cmd(["pactl", "-f", "json", "list", "sources"])
+            if out:
+                try:
+                    sources = json.loads(out)
+                    for s in sources:
+                        name = s.get("name", "")
+                        if "bluez" in name.lower() and "input" in name.lower() and "monitor" not in name.lower():
+                            if clean_mac and clean_mac in name.lower().replace(":", "_"):
+                                return name
+                            # اگر تنها یک سورس بلوتوث ورودی وجود دارد
+                            return name
+                except json.JSONDecodeError:
+                    pass
+            time.sleep(delay)
+
+        return None
+
     def set_headset_mode(self, card_id_or_name: str, mode: str) -> bool:
         """
-        تغییر مستقیم حالت کاربری هدفون بلوتوث میان:
-        - mode='a2dp': کیفیت عالی موسیقی (A2DP Stereo)
-        - mode='hfp': فعال‌سازی میکروفن هدفون برای مکالمه (HFP Headset)
+        تغییر مستقیم حالت کاربری هدفون بلوتوث با حل ریشه‌ای پرش و اتوماسیون ورودی میکروفن:
+        - mode='a2dp':
+            ۱. جابه‌جایی ورودی پیش‌فرض سیستم و استریم‌های فعال به میکروفن لپ‌تاپ
+            ۲. سوییچ بدون بازگشت کارت به کیفیت عالی موسیقی (A2DP Stereo)
+        - mode='hfp':
+            ۱. سوییچ کارت به پروفایل مکالمه (HFP Headset)
+            ۲. تنظیم خودکار منبع پیش‌فرض سیستم و برنامه‌ها به میکروفن هدفون
         """
         profiles = self.get_card_profiles(card_id_or_name)
         target_mode = mode.lower().strip()
 
         for p in profiles:
             if target_mode == "a2dp" and p.is_a2dp:
-                logger.info("سوئیچ به حالت موسیقی A2DP: %s", p.name)
-                return self.set_card_profile(card_id_or_name, p.name)
+                logger.info("شروع فرآیند سوییچ به حالت موسیقی A2DP: %s", p.name)
+                # گام ۱: آزادسازی میکروفن هدفون و انتقال به میکروفن لپ‌تاپ برای جلوگیری از پرش
+                fallback_mic = self.audio_manager.get_hardware_fallback_source()
+                if fallback_mic:
+                    logger.info("انتقال ورودی سیستم به میکروفن داخلی: %s", fallback_mic)
+                    self.audio_manager.set_default_source(fallback_mic)
+                    self.audio_manager.move_recording_streams(fallback_mic)
+
+                # گام ۲: اعمال پروفایل A2DP
+                res = self.set_card_profile(card_id_or_name, p.name)
+                return res
+
             elif target_mode == "hfp" and p.is_hfp:
-                logger.info("سوئیچ به حالت مکالمه با میکروفن HFP: %s", p.name)
-                return self.set_card_profile(card_id_or_name, p.name)
+                logger.info("شروع فرآیند سوییچ به حالت مکالمه HFP: %s", p.name)
+                # گام ۱: اعمال پروفایل HFP
+                res = self.set_card_profile(card_id_or_name, p.name)
+                if not res:
+                    return False
+
+                # گام ۲: یافتن نود ورودی بلوتوث و فعال‌سازی آن به عنوان میکروفن اصلی سیستم
+                bt_source = self._find_bluetooth_source(card_id_or_name)
+                if bt_source:
+                    logger.info("تنظیم خودکار میکروفن هدفون به عنوان ورودی اصلی: %s", bt_source)
+                    self.audio_manager.set_default_source(bt_source)
+                    self.audio_manager.move_recording_streams(bt_source)
+
+                return True
 
         logger.warning("پروفایل متناسب با حالت %s در کارت %s یافت نشد.", mode, card_id_or_name)
         return False
