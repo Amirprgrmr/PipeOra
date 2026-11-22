@@ -1,0 +1,57 @@
+name: PipeOra CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Test & Build (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install System Audio and Qt Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1-mesa-glx \
+            libegl1 \
+            libxkbcommon-x11-0 \
+            libpulse0 \
+            pulseaudio-utils \
+            libdbus-1-dev
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install build pytest pytest-qt
+
+      - name: Syntax and Bytecode Validation
+        run: |
+          python -m compileall app/ tests/
+
+      - name: Run Automated Unit Tests (Offscreen Qt)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest tests/ -v
+
+      - name: Test Wheel & Source Distribution Build
+        run: |
+          python -m build
