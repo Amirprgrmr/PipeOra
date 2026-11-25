@@ -3,17 +3,18 @@
 جایگزین استاندارد ایموجی‌ها و استیکرها در رابط کاربری
 """
 
-from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon, QPixmap
+
+from app.core.paths import get_resource_path
 
 
 class IconHelper:
     """بارگذاری و نگهداری آیکون‌های وکتور اختصاصی SVG."""
 
-    _icons_dir = Path(__file__).resolve().parent.parent.parent / "resources" / "icons"
+    _icons_dir = get_resource_path("resources", "icons")
     _cache: Dict[str, QIcon] = {}
 
     @classmethod

@@ -20,6 +20,7 @@ from app.core.bluetooth_manager import BluetoothManager
 from app.core.profile_manager import ProfileManager
 from app.core.system_detector import SystemDetector
 from app.core.config_manager import ConfigManager
+from app.core.paths import get_project_root, get_resource_path
 from app.services.autostart_service import AutostartService
 from app.ui.main_window import MainWindow
 
@@ -90,8 +91,8 @@ def load_application_font():
 
 def load_stylesheet() -> str:
     """بارگذاری استایل‌شیت یکپارچه Graphite Dark همراه با تزریق مسیر واقعی آیکون‌ها."""
-    qss_path = Path(__file__).resolve().parent / "ui" / "styles" / "style.qss"
-    icons_dir = (Path(__file__).resolve().parent / "resources" / "icons").as_posix()
+    qss_path = get_resource_path("ui", "styles", "style.qss")
+    icons_dir = get_resource_path("resources", "icons").as_posix()
     if qss_path.exists():
         try:
             with open(qss_path, "r", encoding="utf-8") as f:
@@ -111,7 +112,8 @@ def main():
 
     if args.version:
         from app import __version__
-        print(f"PipeOra v{__version__}")
+        if sys.stdout is not None:
+            print(f"PipeOra v{__version__}")
         sys.exit(0)
 
     # بررسی اجرای نسخه تکراری
@@ -137,10 +139,10 @@ def main():
         app.setStyleSheet(qss)
 
     # آیکون برنامه
-    icons_dir = Path(__file__).resolve().parent / "resources" / "icons"
+    icons_dir = get_resource_path("resources", "icons")
     icon_candidates = [
         icons_dir / "pipeora.svg",
-        Path(__file__).resolve().parent.parent / "packaging" / "pipeora.svg",
+        get_project_root() / "packaging" / "pipeora.svg",
         icons_dir / "app_icon.svg"
     ]
     app_icon = QIcon()

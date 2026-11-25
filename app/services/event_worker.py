@@ -6,6 +6,7 @@
 import logging
 import os
 import selectors
+import shutil
 import subprocess
 import time
 from typing import Optional
@@ -64,6 +65,11 @@ class EventWorker(QThread):
 
     def run(self):
         """اجرای حلقه غیربلاکینگ شنود رویدادها."""
+        if shutil.which("pactl") is None:
+            logger.info("ابزار pactl در این سیستم‌عامل یافت نشد؛ سرویس شنود زنده رویدادهای PipeWire غیرفعال ماند.")
+            self._running = False
+            return
+
         self._running = True
         logger.info("سرویس شنود رویدادهای زنده صوتی شروع به کار کرد.")
 

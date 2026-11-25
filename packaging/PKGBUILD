@@ -2,7 +2,7 @@
 # Contributor: amirprgrmr <https://amirprgrmr.ir>
 
 pkgname=pipeora
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="PipeOra - Professional Linux Audio & Bluetooth Output Manager for PipeWire"
 arch=('any')

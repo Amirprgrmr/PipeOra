@@ -4,46 +4,107 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build & Publish Release
+  build-python:
+    name: Build Python Wheel & Source Dist
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
-
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgl1-mesa-glx \
-            libegl1 \
-            libpulse0 \
-            pulseaudio-utils
 
       - name: Install Build Tools
         run: |
           python -m pip install --upgrade pip
           python -m pip install build
 
-      - name: Build Source and Binary Distributions
+      - name: Build Wheel & Sdist
         run: |
           python -m build
 
+      - name: Upload Python Distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-python
+          path: dist/*
+          if-no-files-found: error
+
+  build-apps:
+    name: Build Standalone App (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Linux Qt & Audio Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1 \
+            libegl1 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            libpulse0 \
+            pulseaudio-utils
+
+      - name: Install Dependencies & PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Build Standalone Application Bundle
+        run: |
+          python scripts/build_app.py
+
+      - name: Upload Platform Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-app-${{ runner.os }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.dmg
+          if-no-files-found: error
+
+  publish:
+    name: Generate Checksums & Publish GitHub Release
+    needs: [build-python, build-apps]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
       - name: Generate SHA-256 Checksums
         run: |
-          cd dist
+          cd release-assets
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
@@ -55,6 +116,6 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            dist/*
+            release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
