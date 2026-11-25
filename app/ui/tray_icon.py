@@ -1,6 +1,6 @@
 """
 مدیریت آیکون سینی سیستم (System Tray Icon)
-پشتیبانی از منوی سریع فارسی، کنترل حجم صدا، قطع/وصل و مدیریت پنجره اصلی
+پشتیبانی از منوی سریع فارسی، آیکون‌های وکتور SVG، کنترل حجم صدا و مدیریت پنجره اصلی
 """
 
 from typing import Optional
@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QSystemTrayIcon, QMenu
 
 from app.core.audio_manager import AudioManager
 from app.models.audio import SinkDevice
+from app.ui.styles.icon_helper import IconHelper
 
 
 class AppTrayIcon(QSystemTrayIcon):
@@ -31,7 +32,7 @@ class AppTrayIcon(QSystemTrayIcon):
         self.menu.setLayoutDirection(Qt.RightToLeft)
 
         # عنوان هدر
-        self.action_header = QAction("PipeOra | مدیریت هوشمند صدا", self.menu)
+        self.action_header = QAction(IconHelper.get_icon("pipeora"), "PipeOra | مدیریت هوشمند صدا", self.menu)
         self.action_header.setEnabled(False)
         self.menu.addAction(self.action_header)
 
@@ -42,16 +43,16 @@ class AppTrayIcon(QSystemTrayIcon):
 
         self.menu.addSeparator()
 
-        # کنترل‌های سریع صدا
-        self.action_mute = QAction("🔊 قطع / وصل صدا", self.menu)
+        # کنترل‌های سریع صدا با آیکون‌های وکتور SVG (بدون ایموجی)
+        self.action_mute = QAction(IconHelper.get_icon("speaker-high"), "قطع / وصل صدا", self.menu)
         self.action_mute.triggered.connect(self._toggle_mute)
         self.menu.addAction(self.action_mute)
 
-        self.action_vol_up = QAction("▲ افزایش صدا (+۵٪)", self.menu)
+        self.action_vol_up = QAction(IconHelper.get_icon("plus"), "افزایش صدا (+۵٪)", self.menu)
         self.action_vol_up.triggered.connect(self._vol_up)
         self.menu.addAction(self.action_vol_up)
 
-        self.action_vol_down = QAction("▼ کاهش صدا (-۵٪)", self.menu)
+        self.action_vol_down = QAction(IconHelper.get_icon("minus"), "کاهش صدا (-۵٪)", self.menu)
         self.action_vol_down.triggered.connect(self._vol_down)
         self.menu.addAction(self.action_vol_down)
 
@@ -77,15 +78,15 @@ class AppTrayIcon(QSystemTrayIcon):
         if sink:
             self.action_sink.setText(f"خروجی: {sink.display_name}")
             vol_text = f"{sink.volume_percent}٪"
-            mute_icon = "🔇" if sink.mute else "🔊"
             self.setToolTip(f"PipeOra\n{sink.display_name} ({vol_text})")
+            self.action_mute.setIcon(IconHelper.speaker_icon(sink.volume_percent, sink.mute))
             self.action_mute.setText(f"قطع / وصل صدا ({vol_text})")
         else:
             self.action_sink.setText("خروجی: یافت نشد")
+            self.action_mute.setIcon(IconHelper.get_icon("speaker-mute"))
             self.setToolTip("PipeOra\nبدون خروجی صوتی فعال")
 
     def _on_activated(self, reason):
-        # با کلیک چپ یا فعال‌سازی تری، پنجره نمایش داده یا پنهان می‌شود
         if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
             self.toggle_window_requested.emit()
 

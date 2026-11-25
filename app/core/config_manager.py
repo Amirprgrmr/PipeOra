@@ -17,6 +17,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "favorite_device": None,
     "auto_connect_favorite": True,
     "prefer_a2dp": True,
+    "headset_auto_switch": False,
     "autostart": False,
     "start_minimized": False,
     "close_to_tray": True,
@@ -103,12 +104,20 @@ class ConfigManager:
         self.set("auto_connect_favorite", enabled)
 
     def is_prefer_a2dp_enabled(self) -> bool:
-        """بررسی اولویت انتخاب پروفایل A2DP."""
+        """بررسی اولویت انتخاب پروفایل A2DP هنگام اتصال اولیه."""
         return bool(self.get("prefer_a2dp", True))
 
     def set_prefer_a2dp_enabled(self, enabled: bool) -> None:
-        """تنظیم اولویت انتخاب پروفایل A2DP."""
+        """تنظیم اولویت انتخاب پروفایل A2DP هنگام اتصال اولیه."""
         self.set("prefer_a2dp", enabled)
+
+    def is_headset_auto_switch_enabled(self) -> bool:
+        """بررسی فعال بودن تغییر خودکار هوشمند پروفایل هدست توسط WirePlumber."""
+        return bool(self.get("headset_auto_switch", False))
+
+    def set_headset_auto_switch_enabled(self, enabled: bool) -> None:
+        """فعال یا غیرفعال‌سازی تغییر خودکار پروفایل هدست هنگام شروع/پایان مکالمه."""
+        self.set("headset_auto_switch", bool(enabled))
 
     def is_autostart_enabled(self) -> bool:
         """بررسی وضعیت اجرای خودکار هنگام ورود به سیستم."""

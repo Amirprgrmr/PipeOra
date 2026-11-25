@@ -1,24 +1,23 @@
 """
 صفحه مدیریت دستگاه‌های صوتی و خروجی‌ها (DevicesPage)
-فهرست کامل خروجی‌های صدا، مدیریت پروفایل‌های سخت‌افزاری A2DP و میکسر صدای برنامه‌ها
+فهرست کامل خروجی‌های صدا، مدیریت پروفایل‌های سخت‌افزاری A2DP/HFP و میکسر صدای برنامه‌ها
 """
 
 from typing import List, Optional
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea,
-    QPushButton, QComboBox
+    QPushButton, QComboBox, QSizePolicy
 )
 
 from app.core.audio_manager import AudioManager
 from app.core.profile_manager import ProfileManager
 from app.core.config_manager import ConfigManager
-from app.models.audio import SinkDevice, AppStream
+from app.models.audio import SinkDevice
 from app.ui.components.device_card import DeviceCard
 from app.ui.components.volume_slider import VolumeSlider
-from app.ui.components.status_badge import StatusBadge
 from app.ui.components.headset_mode_card import HeadsetModeCard
-from app.ui.styles.icon_helper import IconHelper
+from app.ui.styles.layout_utils import clear_layout
 
 
 class DevicesPage(QWidget):
@@ -41,8 +40,8 @@ class DevicesPage(QWidget):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setSpacing(18)
 
         # عنوان صفحه
         header_layout = QVBoxLayout()
@@ -57,18 +56,20 @@ class DevicesPage(QWidget):
         main_layout.addLayout(header_layout)
 
         scroll = QScrollArea()
+        scroll.setObjectName("pageScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
 
         container = QWidget()
+        container.setObjectName("pageScrollContainer")
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.container_layout = QVBoxLayout(container)
-        self.container_layout.setContentsMargins(0, 0, 0, 0)
-        self.container_layout.setSpacing(24)
+        self.container_layout.setContentsMargins(0, 0, 0, 6)
+        self.container_layout.setSpacing(20)
 
         # ------------------ بخش اول: خروجی‌های صوتی سیستم ------------------
         sinks_section = QVBoxLayout()
-        sinks_section.setSpacing(12)
+        sinks_section.setSpacing(10)
 
         lbl_sinks_title = QLabel("خروجی‌های صوتی شناسایی‌شده (Sinks)")
         lbl_sinks_title.setObjectName("sectionTitle")
@@ -81,32 +82,36 @@ class DevicesPage(QWidget):
         self.container_layout.addLayout(sinks_section)
 
         # ------------------ بخش دوم: مدیریت حالت و پروفایل صوتی خروجی فعال ------------------
-        self.headset_mode_card = HeadsetModeCard(self.profile_mgr)
+        self.headset_mode_card = HeadsetModeCard(self.profile_mgr, self.config_mgr)
         self.headset_mode_card.mode_changed.connect(lambda mode: self.refresh_data())
         self.container_layout.addWidget(self.headset_mode_card)
 
         self.profile_section = QFrame()
         self.profile_section.setProperty("card", "true")
         profile_layout = QVBoxLayout(self.profile_section)
+        profile_layout.setContentsMargins(18, 16, 18, 16)
         profile_layout.setSpacing(12)
 
-        lbl_prof_title = QLabel("پروفایل صوتی خروجی فعال (اولویت با کیفیت استریو A2DP)")
+        lbl_prof_title = QLabel("پروفایل سخت‌افزاری خروجی فعال (کدک‌های PipeWire)")
         lbl_prof_title.setObjectName("sectionTitle")
         profile_layout.addWidget(lbl_prof_title)
 
         prof_row = QHBoxLayout()
         prof_row.setSpacing(12)
 
-        lbl_prof_select = QLabel("انتخاب پروفایل پخش:")
+        lbl_prof_select = QLabel("انتخاب پروفایل:")
         lbl_prof_select.setStyleSheet("color: #A6AFBD;")
         prof_row.addWidget(lbl_prof_select)
 
         self.combo_profiles = QComboBox()
+        self.combo_profiles.setCursor(Qt.PointingHandCursor)
         self.combo_profiles.currentIndexChanged.connect(self._on_profile_selected)
         prof_row.addWidget(self.combo_profiles, 1)
 
-        self.btn_auto_a2dp = QPushButton("تنظیم خودکار A2DP")
+        self.btn_auto_a2dp = QPushButton("اعمال کیفیت A2DP")
+        self.btn_auto_a2dp.setCursor(Qt.PointingHandCursor)
         self.btn_auto_a2dp.setProperty("primary", "true")
+        self.btn_auto_a2dp.setMinimumHeight(34)
         self.btn_auto_a2dp.clicked.connect(self._enforce_a2dp)
         prof_row.addWidget(self.btn_auto_a2dp)
 
@@ -115,7 +120,7 @@ class DevicesPage(QWidget):
 
         # ------------------ بخش سوم: میکسر صدای برنامه‌ها ------------------
         apps_section = QVBoxLayout()
-        apps_section.setSpacing(12)
+        apps_section.setSpacing(10)
 
         lbl_apps_title = QLabel("صدای برنامه‌های در حال پخش (App Mixer)")
         lbl_apps_title.setObjectName("sectionTitle")
@@ -134,16 +139,11 @@ class DevicesPage(QWidget):
     def refresh_data(self):
         """بارگذاری مجدد اطلاعات خروجی‌ها و استریم‌ها."""
         sinks = self.audio_mgr.get_output_sinks()
-        default_sink = self.audio_mgr.get_default_sink()
+        default_sink = next((s for s in sinks if s.is_default), sinks[0] if sinks else None)
         self._active_sink = default_sink
         favorite_id = self.config_mgr.get_favorite_device()
 
-        # بازسازی لیست سینک‌ها
-        while self.sinks_container.count():
-            item = self.sinks_container.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        clear_layout(self.sinks_container)
 
         for s in sinks:
             card = DeviceCard()
@@ -154,10 +154,7 @@ class DevicesPage(QWidget):
             card.favorite_toggled.connect(self._on_favorite_toggled)
             self.sinks_container.addWidget(card)
 
-        # به‌روزرسانی پروفایل‌های کارت فعال
         self._update_profiles(default_sink)
-
-        # به‌روزرسانی صدای برنامه‌ها
         self._update_apps()
 
     def _update_profiles(self, default_sink: Optional[SinkDevice]):
@@ -165,7 +162,9 @@ class DevicesPage(QWidget):
         self.combo_profiles.blockSignals(True)
         self.combo_profiles.clear()
 
-        card_target = default_sink.card_name or (str(default_sink.card_id) if default_sink and default_sink.card_id else None) if default_sink else None
+        card_target = (
+            default_sink.card_name or (str(default_sink.card_id) if default_sink.card_id else None)
+        ) if default_sink else None
 
         if not default_sink or not card_target:
             self.profile_section.setVisible(False)
@@ -173,7 +172,6 @@ class DevicesPage(QWidget):
             self.combo_profiles.blockSignals(False)
             return
 
-        # به‌روزرسانی کارت اختصاصی حالت هدست اگر هدفون بلوتوث باشد
         self.headset_mode_card.set_target_card(card_target)
 
         self.profile_section.setVisible(True)
@@ -181,7 +179,7 @@ class DevicesPage(QWidget):
 
         active_idx = 0
         for i, p in enumerate(profiles):
-            self.combo_profiles.addItem(p.persian_name, p.name)
+            self.combo_profiles.addItem(f"{p.persian_name} ({p.name})", p.name)
             if p.is_active:
                 active_idx = i
 
@@ -190,11 +188,7 @@ class DevicesPage(QWidget):
 
     def _update_apps(self):
         """به‌روزرسانی لیست برنامه‌های در حال پخش صدا."""
-        while self.apps_container.count():
-            item = self.apps_container.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        clear_layout(self.apps_container)
 
         apps = self.audio_mgr.get_sink_inputs()
         if not apps:
@@ -207,11 +201,11 @@ class DevicesPage(QWidget):
             row_card = QFrame()
             row_card.setProperty("card", "true")
             row_layout = QHBoxLayout(row_card)
-            row_layout.setContentsMargins(14, 12, 14, 12)
+            row_layout.setContentsMargins(16, 12, 16, 12)
             row_layout.setSpacing(14)
 
             lbl_app_name = QLabel(app.name)
-            lbl_app_name.setStyleSheet("font-weight: bold; color: #F2F4F8; min-width: 140px;")
+            lbl_app_name.setStyleSheet("font-weight: bold; color: #F2F4F8; min-width: 130px;")
             row_layout.addWidget(lbl_app_name)
 
             slider = VolumeSlider()
@@ -219,9 +213,13 @@ class DevicesPage(QWidget):
             slider.set_muted(app.mute)
             app_id = app.id
             slider.volume_changed.connect(lambda val, aid=app_id: self.audio_mgr.set_sink_input_volume(aid, val))
+            slider.mute_toggled.connect(lambda mute_state, aid=app_id: self._mute_sink_input(aid, mute_state))
             row_layout.addWidget(slider, 1)
 
             self.apps_container.addWidget(row_card)
+
+    def _mute_sink_input(self, input_id: int, muted: bool):
+        self.audio_mgr._run_cmd(["pactl", "set-sink-input-mute", str(input_id), "1" if muted else "0"])
 
     def _set_default_sink(self, sink_name: str):
         self.audio_mgr.set_default_sink(sink_name)
@@ -235,15 +233,50 @@ class DevicesPage(QWidget):
                 self.config_mgr.set_favorite_device(None)
         self.refresh_data()
 
+    def _get_active_card_target(self) -> Optional[str]:
+        if not self._active_sink:
+            return None
+        return self._active_sink.card_name or (str(self._active_sink.card_id) if self._active_sink.card_id else None)
+
     def _on_profile_selected(self, index: int):
-        if index < 0 or not self._active_sink or not self._active_sink.card_id:
+        card_target = self._get_active_card_target()
+        if index < 0 or not card_target:
             return
         profile_name = self.combo_profiles.currentData()
-        if profile_name:
-            self.profile_mgr.set_card_profile(str(self._active_sink.card_id), profile_name)
-            self.refresh_data()
+        if not profile_name:
+            return
+
+        p_lower = str(profile_name).lower()
+        if self.profile_mgr.has_headset_modes(card_target):
+            if "a2dp" in p_lower:
+                self.profile_mgr.set_wireplumber_autoswitch(False)
+                fallback_mic = self.audio_mgr.get_hardware_fallback_source()
+                if fallback_mic:
+                    self.audio_mgr.set_default_source(fallback_mic)
+                    self.audio_mgr.move_recording_streams(fallback_mic)
+                self.profile_mgr.set_card_profile(card_target, profile_name)
+                if self.config_mgr:
+                    self.config_mgr.set_headset_auto_switch_enabled(False)
+            elif "headset" in p_lower or "hfp" in p_lower or "hsp" in p_lower:
+                self.profile_mgr.set_wireplumber_autoswitch(False)
+                if self.profile_mgr.set_card_profile(card_target, profile_name):
+                    bt_src = self.profile_mgr._find_bluetooth_source(card_target)
+                    if bt_src:
+                        self.audio_mgr.set_default_source(bt_src)
+                        self.audio_mgr.move_recording_streams(bt_src)
+                if self.config_mgr:
+                    self.config_mgr.set_headset_auto_switch_enabled(False)
+            else:
+                self.profile_mgr.set_card_profile(card_target, profile_name)
+        else:
+            self.profile_mgr.set_card_profile(card_target, profile_name)
+
+        self.refresh_data()
 
     def _enforce_a2dp(self):
-        if self._active_sink and self._active_sink.card_id:
-            self.profile_mgr.switch_to_a2dp_if_possible(str(self._active_sink.card_id))
+        card_target = self._get_active_card_target()
+        if card_target:
+            self.profile_mgr.set_headset_mode(card_target, "a2dp", disable_autoswitch=True)
+            if self.config_mgr:
+                self.config_mgr.set_headset_auto_switch_enabled(False)
             self.refresh_data()

@@ -40,20 +40,26 @@ class VolumeSlider(QWidget):
         self.btn_mute = QPushButton()
         self.btn_mute.setToolTip("قطع/وصل صدا")
         self.btn_mute.setProperty("icon_btn", "true")
+        self.btn_mute.setCursor(Qt.PointingHandCursor)
         self.btn_mute.setFixedSize(36, 36)
         self.btn_mute.setIconSize(QSize(20, 20))
         self.btn_mute.clicked.connect(self._on_mute_clicked)
         layout.addWidget(self.btn_mute)
 
-        # دکمه کاهش گامی (-5%)
-        self.btn_minus = QPushButton("−")
+        # دکمه کاهش گامی (-5%) با آیکون وکتور
+        self.btn_minus = QPushButton()
+        self.btn_minus.setIcon(IconHelper.get_icon("minus"))
+        self.btn_minus.setIconSize(QSize(14, 14))
+        self.btn_minus.setProperty("step_btn", "true")
+        self.btn_minus.setCursor(Qt.PointingHandCursor)
         self.btn_minus.setToolTip("کاهش ۵ درصد")
-        self.btn_minus.setFixedSize(28, 28)
+        self.btn_minus.setFixedSize(32, 32)
         self.btn_minus.clicked.connect(self._decrease_step)
         layout.addWidget(self.btn_minus)
 
         # اسلایدر حجم صدا
         self.slider = QSlider(Qt.Horizontal)
+        self.slider.setCursor(Qt.PointingHandCursor)
         self.slider.setRange(0, 100)
         self.slider.setValue(70)
         self.slider.setTracking(True)
@@ -61,10 +67,14 @@ class VolumeSlider(QWidget):
         self.slider.sliderReleased.connect(self._on_slider_released)
         layout.addWidget(self.slider, 1)
 
-        # دکمه افزایش گامی (+5%)
-        self.btn_plus = QPushButton("+")
+        # دکمه افزایش گامی (+5%) با آیکون وکتور
+        self.btn_plus = QPushButton()
+        self.btn_plus.setIcon(IconHelper.get_icon("plus"))
+        self.btn_plus.setIconSize(QSize(14, 14))
+        self.btn_plus.setProperty("step_btn", "true")
+        self.btn_plus.setCursor(Qt.PointingHandCursor)
         self.btn_plus.setToolTip("افزایش ۵ درصد")
-        self.btn_plus.setFixedSize(28, 28)
+        self.btn_plus.setFixedSize(32, 32)
         self.btn_plus.clicked.connect(self._increase_step)
         layout.addWidget(self.btn_plus)
 

@@ -33,6 +33,24 @@ class SinkDevice:
             return self.description
         return self.name
 
+    @property
+    def port_display_name(self) -> str:
+        """ارائه نام فارسی و خوانا برای پورت فعال دستگاه خروجی."""
+        if not self.active_port:
+            return "خروجی مستقیم"
+        p = self.active_port.lower()
+        if "speaker" in p:
+            return "اسپیکر داخلی"
+        if "headphone" in p and not self.is_bluetooth:
+            return "هدفون سیمی"
+        if "hdmi" in p or "displayport" in p:
+            return "خروجی دیجیتال HDMI"
+        if "headset-output" in p:
+            return "پخش استریو بلوتوث (A2DP)"
+        if "headset-hf" in p or "handsfree" in p:
+            return "حالت مکالمه هندزفری (HFP)"
+        return self.active_port
+
 
 @dataclass
 class AppStream:

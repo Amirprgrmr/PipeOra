@@ -1,19 +1,23 @@
 """
 صفحه تنظیمات برنامه (SettingsPage)
-پیکربندی اتصال خودکار هدفون، Autostart، ادغام با System Tray و ابزارهای تشخیصی
+پیکربندی اتصال خودکار هدفون، سیاست WirePlumber Auto-Switch، Autostart، Tray و تشخیص سلامت
 """
 
-from PySide6.QtCore import Qt
+from typing import Optional
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea,
-    QCheckBox, QComboBox, QPushButton
+    QCheckBox, QComboBox, QPushButton, QSizePolicy
 )
 
 from app.core.config_manager import ConfigManager
 from app.core.system_detector import SystemDetector
 from app.core.bluetooth_manager import BluetoothManager
+from app.core.profile_manager import ProfileManager
 from app.services.autostart_service import AutostartService
 from app.ui.components.status_badge import StatusBadge
+from app.ui.styles.icon_helper import IconHelper
+from app.ui.styles.layout_utils import clear_layout
 
 
 class SettingsPage(QWidget):
@@ -25,6 +29,7 @@ class SettingsPage(QWidget):
         detector: SystemDetector,
         bt_mgr: BluetoothManager,
         autostart_svc: AutostartService,
+        profile_mgr: Optional[ProfileManager] = None,
         parent=None
     ):
         super().__init__(parent)
@@ -32,12 +37,13 @@ class SettingsPage(QWidget):
         self.detector = detector
         self.bt_mgr = bt_mgr
         self.autostart_svc = autostart_svc
+        self.profile_mgr = profile_mgr or ProfileManager()
         self._init_ui()
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setSpacing(18)
 
         # عنوان صفحه
         header_layout = QVBoxLayout()
@@ -52,34 +58,47 @@ class SettingsPage(QWidget):
         main_layout.addLayout(header_layout)
 
         scroll = QScrollArea()
+        scroll.setObjectName("pageScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
 
         container = QWidget()
+        container.setObjectName("pageScrollContainer")
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(20)
+        container_layout.setContentsMargins(0, 0, 0, 6)
+        container_layout.setSpacing(14)
 
         # ------------------ گروه اول: رفتارهای هوشمند صوتی ------------------
         card_smart = QFrame()
         card_smart.setProperty("card", "true")
         smart_layout = QVBoxLayout(card_smart)
-        smart_layout.setSpacing(14)
+        smart_layout.setContentsMargins(16, 12, 16, 12)
+        smart_layout.setSpacing(10)
 
         lbl_smart_title = QLabel("رفتار هوشمند هدفون و صدا")
         lbl_smart_title.setObjectName("sectionTitle")
         smart_layout.addWidget(lbl_smart_title)
 
-        self.chk_auto_connect = QCheckBox("اتصال و سوئیچ خودکار به هدفون محبوب هنگام روشن شدن")
+        self.chk_auto_connect = QCheckBox("انتقال خودکار خروجی به هدفون محبوب هنگام اتصال")
+        self.chk_auto_connect.setCursor(Qt.PointingHandCursor)
         self.chk_auto_connect.setChecked(self.config_mgr.is_auto_connect_enabled())
         self.chk_auto_connect.toggled.connect(self._on_auto_connect_toggled)
         smart_layout.addWidget(self.chk_auto_connect)
 
-        self.chk_prefer_a2dp = QCheckBox("اولویت قطعی با پروفایل استریوی باکیفیت (A2DP) و ممانعت از HFP")
+        self.chk_prefer_a2dp = QCheckBox("تنظیم پروفایل باکیفیت A2DP در زمان اتصال اولیه هدفون")
+        self.chk_prefer_a2dp.setCursor(Qt.PointingHandCursor)
         self.chk_prefer_a2dp.setChecked(self.config_mgr.is_prefer_a2dp_enabled())
         self.chk_prefer_a2dp.toggled.connect(self._on_prefer_a2dp_toggled)
         smart_layout.addWidget(self.chk_prefer_a2dp)
+
+        self.chk_headset_auto_switch = QCheckBox(
+            "تغییر خودکار هوشمند پروفایل هنگام مکالمه (WirePlumber Auto-Switch)"
+        )
+        self.chk_headset_auto_switch.setCursor(Qt.PointingHandCursor)
+        self.chk_headset_auto_switch.setChecked(self.config_mgr.is_headset_auto_switch_enabled())
+        self.chk_headset_auto_switch.toggled.connect(self._on_headset_auto_switch_toggled)
+        smart_layout.addWidget(self.chk_headset_auto_switch)
 
         fav_row = QHBoxLayout()
         fav_row.setSpacing(12)
@@ -88,6 +107,7 @@ class SettingsPage(QWidget):
         fav_row.addWidget(lbl_fav)
 
         self.combo_favorite = QComboBox()
+        self.combo_favorite.setCursor(Qt.PointingHandCursor)
         self.combo_favorite.currentIndexChanged.connect(self._on_favorite_selected)
         fav_row.addWidget(self.combo_favorite, 1)
         smart_layout.addLayout(fav_row)
@@ -98,18 +118,21 @@ class SettingsPage(QWidget):
         card_system = QFrame()
         card_system.setProperty("card", "true")
         system_layout = QVBoxLayout(card_system)
-        system_layout.setSpacing(14)
+        system_layout.setContentsMargins(16, 12, 16, 12)
+        system_layout.setSpacing(10)
 
         lbl_sys_title = QLabel("ادغام با دسکتاپ لینوکس")
         lbl_sys_title.setObjectName("sectionTitle")
         system_layout.addWidget(lbl_sys_title)
 
         self.chk_autostart = QCheckBox("اجرای خودکار برنامه هنگام ورود به سیستم (Autostart)")
+        self.chk_autostart.setCursor(Qt.PointingHandCursor)
         self.chk_autostart.setChecked(self.autostart_svc.is_enabled())
         self.chk_autostart.toggled.connect(self._on_autostart_toggled)
         system_layout.addWidget(self.chk_autostart)
 
         self.chk_close_to_tray = QCheckBox("کوچک‌سازی به سینی سیستم (System Tray) هنگام بستن پنجره")
+        self.chk_close_to_tray.setCursor(Qt.PointingHandCursor)
         self.chk_close_to_tray.setChecked(self.config_mgr.is_close_to_tray_enabled())
         self.chk_close_to_tray.toggled.connect(self._on_close_to_tray_toggled)
         system_layout.addWidget(self.chk_close_to_tray)
@@ -120,7 +143,8 @@ class SettingsPage(QWidget):
         card_diag = QFrame()
         card_diag.setProperty("card", "true")
         diag_layout = QVBoxLayout(card_diag)
-        diag_layout.setSpacing(12)
+        diag_layout.setContentsMargins(16, 12, 16, 12)
+        diag_layout.setSpacing(10)
 
         diag_header = QHBoxLayout()
         lbl_diag_title = QLabel("وضعیت زیرساخت صوتی و سرویس‌های سیستم")
@@ -129,12 +153,15 @@ class SettingsPage(QWidget):
         diag_header.addStretch()
 
         btn_recheck = QPushButton("بررسی مجدد")
+        btn_recheck.setCursor(Qt.PointingHandCursor)
+        btn_recheck.setIcon(IconHelper.get_icon("refresh"))
+        btn_recheck.setIconSize(QSize(14, 14))
         btn_recheck.clicked.connect(self.refresh_data)
         diag_header.addWidget(btn_recheck)
         diag_layout.addLayout(diag_header)
 
         self.diag_info_layout = QVBoxLayout()
-        self.diag_info_layout.setSpacing(8)
+        self.diag_info_layout.setSpacing(6)
         diag_layout.addLayout(self.diag_info_layout)
 
         container_layout.addWidget(card_diag)
@@ -144,7 +171,16 @@ class SettingsPage(QWidget):
         main_layout.addWidget(scroll)
 
     def refresh_data(self):
-        """به‌روزرسانی داده‌های تشخیصی و کمبوباکس دستگاه محبوب."""
+        """به‌روزرسانی داده‌های تشخیصی، تنظیمات زنده و کمبوباکس دستگاه محبوب."""
+        # همگام‌سازی چک‌باکس سوییچ خودکار با وضعیت WirePlumber
+        wp_auto = self.profile_mgr.get_wireplumber_autoswitch()
+        if wp_auto is None:
+            wp_auto = self.config_mgr.is_headset_auto_switch_enabled()
+
+        self.chk_headset_auto_switch.blockSignals(True)
+        self.chk_headset_auto_switch.setChecked(bool(wp_auto))
+        self.chk_headset_auto_switch.blockSignals(False)
+
         # پر کردن کمبوباکس دستگاه‌های محبوب
         self.combo_favorite.blockSignals(True)
         self.combo_favorite.clear()
@@ -162,12 +198,8 @@ class SettingsPage(QWidget):
         self.combo_favorite.setCurrentIndex(selected_idx)
         self.combo_favorite.blockSignals(False)
 
-        # به‌روزرسانی کارت سلامت
-        while self.diag_info_layout.count():
-            item = self.diag_info_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        # به‌روزرسانی بدون نشت حافظه ردیف‌های سلامت
+        clear_layout(self.diag_info_layout)
 
         health = self.detector.get_system_health()
         items = [
@@ -179,7 +211,9 @@ class SettingsPage(QWidget):
         ]
 
         for label_text, status_text, variant in items:
-            row = QHBoxLayout()
+            row_widget = QWidget()
+            row = QHBoxLayout(row_widget)
+            row.setContentsMargins(0, 2, 0, 2)
             row.setSpacing(10)
             lbl = QLabel(label_text)
             lbl.setStyleSheet("color: #F2F4F8;")
@@ -187,13 +221,17 @@ class SettingsPage(QWidget):
             row.addStretch()
             badge = StatusBadge(status_text, variant=variant)
             row.addWidget(badge)
-            self.diag_info_layout.addLayout(row)
+            self.diag_info_layout.addWidget(row_widget)
 
     def _on_auto_connect_toggled(self, checked: bool):
         self.config_mgr.set_auto_connect_enabled(checked)
 
     def _on_prefer_a2dp_toggled(self, checked: bool):
         self.config_mgr.set_prefer_a2dp_enabled(checked)
+
+    def _on_headset_auto_switch_toggled(self, checked: bool):
+        self.config_mgr.set_headset_auto_switch_enabled(checked)
+        self.profile_mgr.set_wireplumber_autoswitch(checked)
 
     def _on_close_to_tray_toggled(self, checked: bool):
         self.config_mgr.set_close_to_tray_enabled(checked)

@@ -1,15 +1,5 @@
 import os
-import pytest
-from PySide6.QtWidgets import QApplication
-
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-
-@pytest.fixture(scope="session")
-def qapp():
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    return app
 
 def test_pages_instantiation(qapp, tmp_path):
     from app.core.audio_manager import AudioManager
@@ -51,3 +41,7 @@ def test_pages_instantiation(qapp, tmp_path):
     # Test AboutPage
     about = AboutPage()
     assert about is not None
+
+    for page in (dash, devs, bt_page, settings, about):
+        page.deleteLater()
+    qapp.processEvents()

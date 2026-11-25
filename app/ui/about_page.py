@@ -1,14 +1,14 @@
 """
 صفحه درباره برنامه (AboutPage)
-معرفی پروژه AM Audio Control، شناسنامه مهندسی، توسعه‌دهنده و فناوری‌های لینوکس
+معرفی پروژه PipeOra، شناسنامه مهندسی، توسعه‌دهنده و فناوری‌های لینوکس
 """
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea, QPushButton
-)
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtCore import QUrl
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea,
+    QPushButton, QSizePolicy
+)
 
 from app.ui.styles.icon_helper import IconHelper
 
@@ -22,50 +22,51 @@ class AboutPage(QWidget):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setSpacing(18)
 
         scroll = QScrollArea()
+        scroll.setObjectName("pageScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
 
         container = QWidget()
+        container.setObjectName("pageScrollContainer")
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(20)
+        container_layout.setContentsMargins(0, 0, 0, 6)
+        container_layout.setSpacing(16)
         container_layout.setAlignment(Qt.AlignTop)
 
         # کارت اصلی مشخصات برنامه
         card_main = QFrame()
         card_main.setProperty("card", "true")
         card_layout = QVBoxLayout(card_main)
-        card_layout.setContentsMargins(28, 28, 28, 28)
-        card_layout.setSpacing(16)
+        card_layout.setContentsMargins(24, 22, 24, 22)
+        card_layout.setSpacing(12)
         card_layout.setAlignment(Qt.AlignCenter)
 
         # لوگوی اختصاصی PipeOra با وکتور SVG باکیفیت
         lbl_logo = QLabel()
-        lbl_logo.setFixedSize(76, 76)
+        lbl_logo.setFixedSize(72, 72)
         lbl_logo.setAlignment(Qt.AlignCenter)
-        lbl_logo.setPixmap(IconHelper.get_pixmap("pipeora", 48))
+        lbl_logo.setPixmap(IconHelper.get_pixmap("pipeora", 46))
         lbl_logo.setStyleSheet("""
             QLabel {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(103, 201, 243, 0.25), stop:1 rgba(37, 99, 235, 0.25));
                 border: 2px solid #67C9F3;
-                border-radius: 20px;
+                border-radius: 18px;
                 padding: 10px;
             }
         """)
         card_layout.addWidget(lbl_logo, 0, Qt.AlignCenter)
 
-        # نام و نسخه
         lbl_app_name = QLabel("PipeOra")
-        lbl_app_name.setStyleSheet("font-size: 24px; font-weight: bold; color: #F2F4F8; letter-spacing: 0.5px;")
+        lbl_app_name.setStyleSheet("font-size: 23px; font-weight: bold; color: #F2F4F8; letter-spacing: 0.5px;")
         card_layout.addWidget(lbl_app_name, 0, Qt.AlignCenter)
 
         lbl_persian_name = QLabel("PipeOra | نسخه ۱.۰.۰ (رسمی)")
-        lbl_persian_name.setStyleSheet("font-size: 14px; font-weight: 600; color: #67C9F3;")
+        lbl_persian_name.setStyleSheet("font-size: 13px; font-weight: 600; color: #67C9F3;")
         card_layout.addWidget(lbl_persian_name, 0, Qt.AlignCenter)
 
         lbl_desc = QLabel(
@@ -73,8 +74,10 @@ class AboutPage(QWidget):
             "توسعه‌یافته بر پایه PipeWire و WirePlumber برای توزیع‌های Parch Linux و Arch Linux در محیط KDE Plasma (Wayland)."
         )
         lbl_desc.setAlignment(Qt.AlignCenter)
-        lbl_desc.setStyleSheet("color: #A6AFBD; font-size: 13px; line-height: 1.6;")
-        card_layout.addWidget(lbl_desc, 0, Qt.AlignCenter)
+        lbl_desc.setWordWrap(True)
+        lbl_desc.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        lbl_desc.setStyleSheet("color: #A6AFBD; font-size: 12px;")
+        card_layout.addWidget(lbl_desc)
 
         container_layout.addWidget(card_main)
 
@@ -82,8 +85,8 @@ class AboutPage(QWidget):
         card_dev = QFrame()
         card_dev.setProperty("card", "true")
         dev_layout = QVBoxLayout(card_dev)
-        dev_layout.setContentsMargins(20, 20, 20, 20)
-        dev_layout.setSpacing(12)
+        dev_layout.setContentsMargins(20, 18, 20, 18)
+        dev_layout.setSpacing(10)
 
         lbl_dev_title = QLabel("توسعه‌دهنده و مهندسی نرم‌افزار")
         lbl_dev_title.setObjectName("sectionTitle")
@@ -93,24 +96,28 @@ class AboutPage(QWidget):
         lbl_author.setStyleSheet("color: #F2F4F8; font-size: 14px; font-weight: bold;")
         dev_layout.addWidget(lbl_author)
 
-        lbl_role = QLabel("Software Engineer & Linux Desktop Developer")
+        lbl_role = QLabel("Linux Desktop Developer & Audio Systems Engineer")
         lbl_role.setObjectName("mutedText")
+        lbl_role.setAlignment(Qt.AlignRight)
         dev_layout.addWidget(lbl_role)
 
         # لینک‌های ارتباطی
         links_layout = QHBoxLayout()
-        links_layout.setSpacing(12)
+        links_layout.setSpacing(10)
 
         btn_site = QPushButton("وب‌سایت شخصی (amirprgrmr.ir)")
         btn_site.setProperty("primary", "true")
+        btn_site.setCursor(Qt.PointingHandCursor)
         btn_site.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://amirprgrmr.ir")))
         links_layout.addWidget(btn_site)
 
         btn_github = QPushButton("مخزن گیت‌هاب (GitHub)")
+        btn_github.setCursor(Qt.PointingHandCursor)
         btn_github.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/Amirprgrmr/PipeOra")))
         links_layout.addWidget(btn_github)
 
         btn_tg = QPushButton("کانال / ارتباط تلگرام")
+        btn_tg.setCursor(Qt.PointingHandCursor)
         btn_tg.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://t.me/Amirprgrmr")))
         links_layout.addWidget(btn_tg)
 
@@ -123,7 +130,7 @@ class AboutPage(QWidget):
         card_stack = QFrame()
         card_stack.setProperty("card", "true")
         stack_layout = QVBoxLayout(card_stack)
-        stack_layout.setContentsMargins(20, 20, 20, 20)
+        stack_layout.setContentsMargins(20, 18, 20, 18)
         stack_layout.setSpacing(10)
 
         lbl_stack_title = QLabel("پشته فناوری و زیرساخت")
@@ -131,15 +138,16 @@ class AboutPage(QWidget):
         stack_layout.addWidget(lbl_stack_title)
 
         tech_text = (
-            "• زبان و فریم‌ورک: Python 3.14 + PySide6 (Qt 6.12+)\n"
-            "• مدیریت صوت: PipeWire 1.6+ & WirePlumber Session Manager\n"
+            "• زبان و فریم‌ورک: Python + PySide6 (Qt 6)\n"
+            "• مدیریت صوت: PipeWire & WirePlumber Session Manager\n"
             "• مدیریت بلوتوث: BlueZ D-Bus Interface (org.bluez)\n"
             "• پلتفرم هدف: Parch Linux / Arch Linux (KDE Plasma Wayland)\n"
-            "• معماری: تفکیک ماژولار هسته و رابط کاربری، شنود زنده رویدادهای pactl subscribe\n"
-            "• قانون محصول: حذف ۱۰۰٪ هرگونه ورودی و میکروفن، اولویت با کیفیت پخش استریو (A2DP)"
+            "• معماری: شنود زنده رویدادهای PipeWire و اتوماسیون قفل پروفایل A2DP/HFP"
         )
         lbl_tech = QLabel(tech_text)
-        lbl_tech.setStyleSheet("color: #A6AFBD; font-size: 12px; line-height: 1.8;")
+        lbl_tech.setWordWrap(True)
+        lbl_tech.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        lbl_tech.setStyleSheet("color: #A6AFBD; font-size: 12px;")
         stack_layout.addWidget(lbl_tech)
 
         container_layout.addWidget(card_stack)

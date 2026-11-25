@@ -8,7 +8,7 @@ import logging
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -184,12 +184,60 @@ class ProfileManager:
         res = self._run_cmd(["pactl", "set-card-profile", target, prof])
         return res is not None
 
-    def has_headset_modes(self, card_id_or_name: str) -> bool:
-        """بررسی اینکه آیا کارت صوتی از دو حالت A2DP و HFP پشتیبانی می‌کند یا خیر."""
+    def get_wireplumber_autoswitch(self) -> Optional[bool]:
+        """خواندن وضعیت سوییچ خودکار پروفایل هدست در WirePlumber."""
+        out = self._run_cmd(
+            ["wpctl", "settings", "bluetooth.autoswitch-to-headset-profile"],
+            timeout=2.0
+        )
+        if not out:
+            return None
+        for line in out.splitlines():
+            clean = line.strip().lower()
+            if clean.startswith("value:"):
+                val = clean.split(":", 1)[1].strip()
+                if val.startswith("true"):
+                    return True
+                if val.startswith("false"):
+                    return False
+        return None
+
+    def set_wireplumber_autoswitch(self, enabled: bool) -> bool:
+        """
+        تنظیم زنده سیاست تغییر خودکار پروفایل هدست در WirePlumber.
+        هنگام قفل دستی پروفایل روی HFP یا A2DP باید غیرفعال شود تا پروفایل بعد از ۴ ثانیه نپرد.
+        """
+        val_str = "true" if enabled else "false"
+        key = "bluetooth.autoswitch-to-headset-profile"
+        res = self._run_cmd(["wpctl", "settings", key, val_str], timeout=2.0)
+        if res is not None:
+            # ذخیره دائمی مقدار جاری در تنظیمات WirePlumber
+            self._run_cmd(["wpctl", "settings", "--save", key], timeout=2.0)
+            return True
+        return False
+
+    def get_headset_status(self, card_id_or_name: str) -> Tuple[bool, str]:
+        """
+        دریافت هم‌زمان پشتیبانی دوحالته و حالت فعال فعلی هدست با یک فراخوانی pactl:
+        خروجی: (has_headset_modes, 'a2dp' | 'hfp' | 'other')
+        """
         profiles = self.get_card_profiles(card_id_or_name)
         has_a2dp = any(p.is_a2dp for p in profiles)
         has_hfp = any(p.is_hfp for p in profiles)
-        return has_a2dp and has_hfp
+        active_mode = "other"
+        for p in profiles:
+            if p.is_active:
+                if p.is_a2dp:
+                    active_mode = "a2dp"
+                elif p.is_hfp:
+                    active_mode = "hfp"
+                break
+        return (has_a2dp and has_hfp), active_mode
+
+    def has_headset_modes(self, card_id_or_name: str) -> bool:
+        """بررسی اینکه آیا کارت صوتی از دو حالت A2DP و HFP پشتیبانی می‌کند یا خیر."""
+        has_modes, _ = self.get_headset_status(card_id_or_name)
+        return has_modes
 
     def get_headset_mode(self, card_id_or_name: str) -> str:
         """
@@ -198,14 +246,8 @@ class ProfileManager:
         - 'hfp': حالت مکالمه و تماس (میکروفن هدفون فعال)
         - 'other': سایر حالات یا عدم پشتیبانی
         """
-        profiles = self.get_card_profiles(card_id_or_name)
-        for p in profiles:
-            if p.is_active:
-                if p.is_a2dp:
-                    return "a2dp"
-                elif p.is_hfp:
-                    return "hfp"
-        return "other"
+        _, mode = self.get_headset_status(card_id_or_name)
+        return mode
 
     def _find_bluetooth_source(self, card_id_or_name: str, max_retries: int = 15, delay: float = 0.05) -> Optional[str]:
         """یافتن منبع ورودی میکروفن بلوتوث (bluez_input) پس از تغییر پروفایل به HFP."""
@@ -222,7 +264,6 @@ class ProfileManager:
                         if "bluez" in name.lower() and "input" in name.lower() and "monitor" not in name.lower():
                             if clean_mac and clean_mac in name.lower().replace(":", "_"):
                                 return name
-                            # اگر تنها یک سورس بلوتوث ورودی وجود دارد
                             return name
                 except json.JSONDecodeError:
                     pass
@@ -230,41 +271,51 @@ class ProfileManager:
 
         return None
 
-    def set_headset_mode(self, card_id_or_name: str, mode: str) -> bool:
+    def set_headset_mode(self, card_id_or_name: str, mode: str, disable_autoswitch: bool = True) -> bool:
         """
-        تغییر مستقیم حالت کاربری هدفون بلوتوث با حل ریشه‌ای پرش و اتوماسیون ورودی میکروفن:
+        تغییر مستقیم حالت کاربری هدفون بلوتوث با حل ریشه‌ای پرش ۴ ثانیه‌ای WirePlumber و اتوماسیون میکروفن:
         - mode='a2dp':
-            ۱. جابه‌جایی ورودی پیش‌فرض سیستم و استریم‌های فعال به میکروفن لپ‌تاپ
-            ۲. سوییچ بدون بازگشت کارت به کیفیت عالی موسیقی (A2DP Stereo)
+            ۱. غیرفعال‌سازی autoswitch در صورت قفل دستی تا استریم‌های پس‌زمینه کیفیت موسیقی را خراب نکنند
+            ۲. جابه‌جایی ورودی پیش‌فرض سیستم و استریم‌های فعال به میکروفن لپ‌تاپ
+            ۳. سوییچ کارت به کیفیت عالی موسیقی (A2DP Stereo)
         - mode='hfp':
-            ۱. سوییچ کارت به پروفایل مکالمه (HFP Headset)
-            ۲. تنظیم خودکار منبع پیش‌فرض سیستم و برنامه‌ها به میکروفن هدفون
+            ۱. غیرفعال‌سازی autoswitch در صورت قفل دستی تا WirePlumber بعد از ۴ ثانیه پروفایل را به A2DP برنگرداند
+            ۲. سوییچ کارت به پروفایل مکالمه (HFP Headset)
+            ۳. تنظیم خودکار منبع پیش‌فرض سیستم و برنامه‌ها به میکروفن هدفون
         """
         profiles = self.get_card_profiles(card_id_or_name)
         target_mode = mode.lower().strip()
 
-        for p in profiles:
-            if target_mode == "a2dp" and p.is_a2dp:
-                logger.info("شروع فرآیند سوییچ به حالت موسیقی A2DP: %s", p.name)
-                # گام ۱: آزادسازی میکروفن هدفون و انتقال به میکروفن لپ‌تاپ برای جلوگیری از پرش
+        def _pick_profile(is_target):
+            avail = [p for p in profiles if is_target(p) and p.available]
+            return avail[0] if avail else next((p for p in profiles if is_target(p)), None)
+
+        if target_mode == "a2dp":
+            prof = _pick_profile(lambda p: p.is_a2dp)
+            if prof:
+                logger.info("شروع فرآیند سوییچ به حالت موسیقی A2DP: %s", prof.name)
+                if disable_autoswitch:
+                    self.set_wireplumber_autoswitch(False)
+
                 fallback_mic = self.audio_manager.get_hardware_fallback_source()
                 if fallback_mic:
                     logger.info("انتقال ورودی سیستم به میکروفن داخلی: %s", fallback_mic)
                     self.audio_manager.set_default_source(fallback_mic)
                     self.audio_manager.move_recording_streams(fallback_mic)
 
-                # گام ۲: اعمال پروفایل A2DP
-                res = self.set_card_profile(card_id_or_name, p.name)
-                return res
+                return self.set_card_profile(card_id_or_name, prof.name)
 
-            elif target_mode == "hfp" and p.is_hfp:
-                logger.info("شروع فرآیند سوییچ به حالت مکالمه HFP: %s", p.name)
-                # گام ۱: اعمال پروفایل HFP
-                res = self.set_card_profile(card_id_or_name, p.name)
+        elif target_mode == "hfp":
+            prof = _pick_profile(lambda p: p.is_hfp)
+            if prof:
+                logger.info("شروع فرآیند سوییچ به حالت مکالمه HFP: %s", prof.name)
+                if disable_autoswitch:
+                    self.set_wireplumber_autoswitch(False)
+
+                res = self.set_card_profile(card_id_or_name, prof.name)
                 if not res:
                     return False
 
-                # گام ۲: یافتن نود ورودی بلوتوث و فعال‌سازی آن به عنوان میکروفن اصلی سیستم
                 bt_source = self._find_bluetooth_source(card_id_or_name)
                 if bt_source:
                     logger.info("تنظیم خودکار میکروفن هدفون به عنوان ورودی اصلی: %s", bt_source)
@@ -278,6 +329,9 @@ class ProfileManager:
 
     def switch_to_a2dp_if_possible(self, card_id_or_name: str) -> bool:
         """سوئیچ خودکار به پروفایل باکیفیت A2DP در صورت پشتیبانی کارت."""
+        has_modes, mode = self.get_headset_status(card_id_or_name)
+        if has_modes and mode != "a2dp":
+            return self.set_headset_mode(card_id_or_name, "a2dp", disable_autoswitch=False)
         profiles = self.get_card_profiles(card_id_or_name)
         for p in profiles:
             if p.is_a2dp and p.available and not p.is_active:

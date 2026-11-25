@@ -3,21 +3,19 @@
 مدیریت اتصال هدفون‌ها و دستگاه‌های صوتی بلوتوث، مشاهده باتری واقعی و اسکن دستگاه‌ها
 """
 
-from typing import List, Optional
 from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea,
-    QPushButton
+    QPushButton, QSizePolicy
 )
 
 from app.core.bluetooth_manager import BluetoothManager
 from app.core.profile_manager import ProfileManager
 from app.core.config_manager import ConfigManager
-from app.models.bluetooth import BTDevice
 from app.ui.components.device_card import DeviceCard
-from app.ui.components.status_badge import StatusBadge
 from app.ui.components.headset_mode_card import HeadsetModeCard
 from app.ui.styles.icon_helper import IconHelper
+from app.ui.styles.layout_utils import clear_layout
 
 
 class BluetoothPage(QWidget):
@@ -39,11 +37,13 @@ class BluetoothPage(QWidget):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setSpacing(18)
 
         # ------------------ هدر بلوتوث و کنترل آداپتور ------------------
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(10)
+
         header_text = QVBoxLayout()
         header_text.setSpacing(4)
 
@@ -55,21 +55,24 @@ class BluetoothPage(QWidget):
         lbl_desc.setObjectName("mutedText")
         header_text.addWidget(lbl_desc)
 
-        header_layout.addLayout(header_text)
-        header_layout.addStretch()
+        header_layout.addLayout(header_text, 1)
 
         # دکمه روشن/خاموش کردن بلوتوث
         self.btn_power = QPushButton("روشن کردن بلوتوث")
+        self.btn_power.setCursor(Qt.PointingHandCursor)
         self.btn_power.setIcon(IconHelper.get_icon("bluetooth"))
         self.btn_power.setIconSize(QSize(18, 18))
+        self.btn_power.setMinimumHeight(36)
         self.btn_power.clicked.connect(self._toggle_power)
         header_layout.addWidget(self.btn_power)
 
         # دکمه اسکن دستگاه‌ها
         self.btn_scan = QPushButton("جستجوی دستگاه جدید")
+        self.btn_scan.setCursor(Qt.PointingHandCursor)
         self.btn_scan.setIcon(IconHelper.get_icon("refresh"))
         self.btn_scan.setIconSize(QSize(16, 16))
         self.btn_scan.setProperty("primary", "true")
+        self.btn_scan.setMinimumHeight(36)
         self.btn_scan.clicked.connect(self._toggle_scan)
         header_layout.addWidget(self.btn_scan)
 
@@ -77,17 +80,19 @@ class BluetoothPage(QWidget):
 
         # اسکرول اریا
         scroll = QScrollArea()
+        scroll.setObjectName("pageScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
 
         container = QWidget()
+        container.setObjectName("pageScrollContainer")
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(20)
+        container_layout.setContentsMargins(0, 0, 0, 6)
+        container_layout.setSpacing(18)
 
         # کارت تعویض حالت هدست
-        self.headset_mode_card = HeadsetModeCard(self.profile_mgr)
+        self.headset_mode_card = HeadsetModeCard(self.profile_mgr, self.config_mgr)
         self.headset_mode_card.mode_changed.connect(lambda mode: self.refresh_data())
         container_layout.addWidget(self.headset_mode_card)
 
@@ -119,12 +124,7 @@ class BluetoothPage(QWidget):
         self.btn_power.style().unpolish(self.btn_power)
         self.btn_power.style().polish(self.btn_power)
 
-        # بازسازی کارت‌های دستگاه‌ها
-        while self.devices_container.count():
-            item = self.devices_container.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        clear_layout(self.devices_container)
 
         if not powered:
             self.headset_mode_card.setVisible(False)
@@ -183,7 +183,6 @@ class BluetoothPage(QWidget):
             self.bt_mgr.start_discovery()
             self._is_scanning = True
             self.btn_scan.setText("در حال جستجو... (توقف)")
-            # توقف خودکار پس از ۱۵ ثانیه
             QTimer.singleShot(15000, self._auto_stop_scan)
 
     def _auto_stop_scan(self):

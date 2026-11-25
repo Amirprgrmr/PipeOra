@@ -10,12 +10,11 @@ QMainWindow, QDialog, QWidget#centralWidget {
     font-size: 13px;
 }
 
-/* کارت‌ها و کانتینرها */
+/* کارت‌ها و کانتینرها (فاصله داخلی توسط Layout اعمال می‌شود تا هندسه Qt دقیق بماند) */
 QFrame[card="true"], .card {
     background-color: #191E27;
     border: 1px solid #2D3545;
     border-radius: 12px;
-    padding: 16px;
 }
 
 QFrame[card="true"]:hover {
@@ -26,8 +25,8 @@ QFrame[card="true"]:hover {
 #sidebar {
     background-color: #151921;
     border-left: 1px solid #2D3545; /* در RTL، حاشیه چپ به سمت محتوا قرار می‌گیرد */
-    min-width: 220px;
-    max-width: 250px;
+    min-width: 215px;
+    max-width: 245px;
 }
 
 /* دکمه‌های ناوبری نوار کناری */
@@ -36,7 +35,7 @@ QPushButton[nav="true"] {
     color: #A6AFBD;
     border: none;
     border-radius: 8px;
-    padding: 12px 16px;
+    padding: 10px 14px;
     text-align: right;
     font-size: 13px;
     font-weight: 500;
@@ -48,7 +47,7 @@ QPushButton[nav="true"]:hover {
 }
 
 QPushButton[nav="true"][active="true"] {
-    background-color: rgba(103, 201, 243, 0.12);
+    background-color: rgba(103, 201, 243, 0.14);
     color: #67C9F3;
     font-weight: 600;
     border-right: 3px solid #67C9F3;
@@ -60,7 +59,7 @@ QPushButton {
     color: #F2F4F8;
     border: 1px solid #2D3545;
     border-radius: 8px;
-    padding: 8px 16px;
+    padding: 7px 14px;
     font-size: 12px;
     font-weight: 500;
 }
@@ -68,6 +67,10 @@ QPushButton {
 QPushButton:hover {
     background-color: #2B3342;
     border-color: #3B4559;
+}
+
+QPushButton:focus {
+    border: 1px solid #67C9F3;
 }
 
 QPushButton:pressed {
@@ -96,6 +99,12 @@ QPushButton[primary="true"]:pressed {
     background-color: #4DBEEF;
 }
 
+QPushButton[primary="true"]:disabled {
+    background-color: #1B2330;
+    color: #6B7687;
+    border: 1px solid #263042;
+}
+
 /* دکمه‌های موفقیت (Success Button) */
 QPushButton[success="true"] {
     background-color: #55CFA0;
@@ -120,10 +129,10 @@ QPushButton[danger="true"]:hover {
     border-color: #EB7777;
 }
 
-/* دکمه‌های آیکونی فشرده */
-QPushButton[icon_btn="true"] {
-    padding: 6px;
-    border-radius: 6px;
+/* دکمه‌های آیکونی و گام سریع (بدون Padding اضافه تا آیکون بریده نشود) */
+QPushButton[icon_btn="true"], QPushButton[step_btn="true"] {
+    padding: 0px;
+    border-radius: 8px;
 }
 
 /* کنترل اسلایدر صدا (Audio Slider) */
@@ -161,17 +170,23 @@ QSlider::handle:horizontal:disabled {
     border-color: #434D5D;
 }
 
+/* نواحی اسکرول شفاف بدون تداخل استایل با ویجت‌های داخلی */
+QScrollArea#pageScroll, QScrollArea#pageScroll > QWidget > QWidget, QWidget#pageScrollContainer {
+    background-color: transparent;
+    border: none;
+}
+
 /* اسکرول بار مدرن و باریک */
 QScrollBar:vertical {
     background-color: transparent;
     width: 8px;
-    margin: 0;
+    margin: 2px 0;
     border-radius: 4px;
 }
 
 QScrollBar::handle:vertical {
     background-color: #2D3545;
-    min-height: 24px;
+    min-height: 28px;
     border-radius: 4px;
 }
 
@@ -179,24 +194,41 @@ QScrollBar::handle:vertical:hover {
     background-color: #3B4559;
 }
 
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-    height: 0px;
+QScrollBar:horizontal {
+    background-color: transparent;
+    height: 8px;
+    margin: 0 2px;
+    border-radius: 4px;
 }
 
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+QScrollBar::handle:horizontal {
+    background-color: #2D3545;
+    min-width: 28px;
+    border-radius: 4px;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    height: 0px;
+    width: 0px;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     background: transparent;
 }
 
-/* چک‌باکس و سوییچ‌ها */
+/* چک‌باکس و سوییچ‌ها با آیکون وکتور تیک */
 QCheckBox {
     color: #F2F4F8;
     spacing: 10px;
+    padding: 2px 0;
 }
 
 QCheckBox::indicator {
     width: 20px;
     height: 20px;
-    border: 1px solid #2D3545;
+    border: 1px solid #3B4559;
     border-radius: 6px;
     background-color: #191E27;
 }
@@ -208,24 +240,38 @@ QCheckBox::indicator:hover {
 QCheckBox::indicator:checked {
     background-color: #67C9F3;
     border-color: #67C9F3;
+    image: url("{{ICONS_DIR}}/check-mark.svg");
 }
 
-/* کمبوباکس */
+/* کمبوباکس با فلش وکتور */
 QComboBox {
     background-color: #222936;
     color: #F2F4F8;
     border: 1px solid #2D3545;
     border-radius: 8px;
-    padding: 8px 12px;
+    padding: 7px 12px;
+    min-height: 20px;
 }
 
 QComboBox:hover {
     border-color: #3B4559;
 }
 
+QComboBox:focus {
+    border-color: #67C9F3;
+}
+
 QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center left;
     border: none;
-    width: 24px;
+    width: 28px;
+}
+
+QComboBox::down-arrow {
+    image: url("{{ICONS_DIR}}/chevron-down.svg");
+    width: 14px;
+    height: 14px;
 }
 
 QComboBox QAbstractItemView {

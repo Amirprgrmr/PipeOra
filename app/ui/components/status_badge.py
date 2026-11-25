@@ -1,10 +1,10 @@
 """
 کامپوننت برچسب وضعیت فشرده (StatusBadge)
-با طراحی مینیمال و رنگ‌های معنایی Graphite Dark
+با طراحی مینیمال و رنگ‌های معنایی Graphite Dark و ارتفاع امن ضدبریدگی
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLabel, QSizePolicy
 
 
 class StatusBadge(QLabel):
@@ -41,6 +41,8 @@ class StatusBadge(QLabel):
     def __init__(self, text: str = "", variant: str = "neutral", parent=None):
         super().__init__(text, parent)
         self.setAlignment(Qt.AlignCenter)
+        self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.setMinimumHeight(26)
         self.set_variant(variant, text)
 
     def set_variant(self, variant: str, text: str = ""):
@@ -53,8 +55,8 @@ class StatusBadge(QLabel):
                 background-color: {style_info['bg']};
                 color: {style_info['color']};
                 border: {style_info['border']};
-                border-radius: 10px;
-                padding: 3px 10px;
+                border-radius: 11px;
+                padding: 2px 11px;
                 font-size: 11px;
                 font-weight: 600;
             }}

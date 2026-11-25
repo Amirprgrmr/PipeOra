@@ -15,7 +15,9 @@ def run_unit_tests():
     print("=" * 60)
     print("۱. اجرای تست‌های خودکار واحد (pytest)...")
     print("=" * 60)
-    res = subprocess.run([sys.executable, "-m", "pytest", "tests/", "-v"], check=False)
+    env = os.environ.copy()
+    env["QT_QPA_PLATFORM"] = "offscreen"
+    res = subprocess.run([sys.executable, "-m", "pytest", "tests/", "-v"], env=env, check=False)
     if res.returncode != 0:
         print("❌ تست‌های واحد با شکست مواجه شدند!")
         return False

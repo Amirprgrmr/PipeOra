@@ -1,9 +1,11 @@
 """
 ورکر پس‌زمینه دریافت زنده رویدادهای PipeWire و بلوتوث (EventWorker)
-مبتنی بر QThread و دستور pactl subscribe برای به‌روزرسانی آنی رابط کاربری بدون Polling سنگین
+مبتنی بر QThread، دستور pactl subscribe و selectors برای شنود غیربلاکینگ و به‌روزرسانی آنی
 """
 
 import logging
+import os
+import selectors
 import subprocess
 import time
 from typing import Optional
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class EventWorker(QThread):
     """
-    شنود پیوسته رویدادهای صوتی لینوکس در ترد جداگانه
+    شنود پیوسته رویدادهای صوتی لینوکس در ترد جداگانه با I/O غیربلاکینگ
     و مخابره سیگنال‌های امن Qt به ترد اصلی رابط کاربری.
     """
 
@@ -31,69 +33,100 @@ class EventWorker(QThread):
         self._running = False
         self._proc: Optional[subprocess.Popen] = None
 
+    def _spawn_subscribe(self) -> Optional[subprocess.Popen]:
+        """اجرای فرآیند pactl subscribe با بافر صفر برای قرائت خام با selector."""
+        return subprocess.Popen(
+            ["pactl", "subscribe"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            bufsize=0,
+        )
+
+    def _process_line(self, event_line: str):
+        """تحلیل خط رویداد و مخابره سیگنال مناسب به رابط کاربری."""
+        lower = event_line.lower()
+        if not lower:
+            return
+
+        # نادیده گرفتن تغییرات خام منابع ورودی (میکروفن)
+        if "on source #" in lower:
+            return
+
+        if "on sink #" in lower:
+            self.sink_changed.emit(event_line)
+        elif "on server" in lower:
+            self.server_changed.emit()
+        elif "on sink-input #" in lower:
+            self.stream_changed.emit()
+        elif "on card #" in lower or "on source-output #" in lower:
+            # تغییر کارت یا شروع/پایان استریم ضبط (برای بازتاب سوییچ خودکار هدست در UI)
+            self.card_changed.emit(event_line)
+
     def run(self):
-        """اجرای حلقه شنود رویدادها."""
+        """اجرای حلقه غیربلاکینگ شنود رویدادها."""
         self._running = True
         logger.info("سرویس شنود رویدادهای زنده صوتی شروع به کار کرد.")
 
-        # شروع فرآیند pactl subscribe
         try:
-            self._proc = subprocess.Popen(
-                ["pactl", "subscribe"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                bufsize=1
-            )
+            self._proc = self._spawn_subscribe()
         except Exception as e:
             logger.error("خطا در اجرای pactl subscribe: %s", e)
             self._running = False
             return
 
+        sel = selectors.DefaultSelector()
+        fd = self._proc.stdout.fileno() if self._proc and self._proc.stdout else None
+        if fd is not None:
+            sel.register(fd, selectors.EVENT_READ)
+
         last_bt_check = 0.0
+        byte_buf = b""
 
-        while self._running:
-            # بررسی دوره‌ای وضعیت بلوتوث هر ۲.۵ ثانیه
-            now = time.time()
-            if now - last_bt_check >= 2.5:
-                self.bluetooth_changed.emit()
-                last_bt_check = now
+        try:
+            while self._running:
+                now = time.time()
+                if now - last_bt_check >= 2.5:
+                    self.bluetooth_changed.emit()
+                    last_bt_check = now
 
-            if not self._proc or not self._proc.stdout:
-                break
+                if not self._proc or not self._proc.stdout:
+                    break
 
-            line = self._proc.stdout.readline()
-            if not line:
-                if self._proc.poll() is not None:
-                    # فرآیند متوقف شده است (مثلاً ریستارت پایپ‌وایر)
-                    time.sleep(1.0)
+                events = sel.select(timeout=0.4)
+                if not events:
+                    continue
+
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    # EOF - فرآیند متوقف شده (مثلاً ریستارت PipeWire)
                     try:
-                        self._proc = subprocess.Popen(
-                            ["pactl", "subscribe"],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL,
-                            text=True,
-                            bufsize=1
-                        )
+                        sel.unregister(fd)
                     except Exception:
                         pass
-                continue
+                    if not self._running:
+                        break
+                    time.sleep(1.0)
+                    try:
+                        self._proc = self._spawn_subscribe()
+                        if self._proc and self._proc.stdout:
+                            fd = self._proc.stdout.fileno()
+                            sel.register(fd, selectors.EVENT_READ)
+                            byte_buf = b""
+                    except Exception:
+                        pass
+                    continue
 
-            event_line = line.strip()
-            # فیلتر کردن دقیق رویدادهای مربوط به میکروفن یا ورودی‌ها
-            if "source" in event_line.lower() and "source-output" not in event_line.lower():
-                # رویدادهای منابع میکروفن کاملاً نادیده گرفته می‌شوند
-                continue
-
-            # تحلیل رویدادهای خروجی صوتی
-            if "sink #" in event_line:
-                self.sink_changed.emit(event_line)
-            elif "server" in event_line:
-                self.server_changed.emit()
-            elif "sink-input" in event_line:
-                self.stream_changed.emit()
-            elif "card" in event_line:
-                self.card_changed.emit(event_line)
+                byte_buf += chunk
+                while b"\n" in byte_buf:
+                    raw_line, byte_buf = byte_buf.split(b"\n", 1)
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if line:
+                        self._process_line(line)
+        finally:
+            try:
+                sel.close()
+            except Exception:
+                pass
 
     def stop(self):
         """توقف تمیز ورکر و خاتمه دادن به ساب‌پراسس."""
@@ -108,5 +141,5 @@ class EventWorker(QThread):
                 except Exception:
                     pass
             self._proc = None
-        self.wait()
+        self.wait(1500)
         logger.info("سرویس شنود رویدادهای صوتی متوقف شد.")

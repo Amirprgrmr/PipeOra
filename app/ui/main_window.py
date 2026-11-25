@@ -1,15 +1,15 @@
 """
-پنجره اصلی نرم‌افزار AM Audio Control
-شامل نوار کناری راست‌چین، ناوبری میان صفحات، اتصال رویدادهای زنده و ادغام با System Tray
+پنجره اصلی نرم‌افزار PipeOra
+شامل نوار کناری راست‌چین، ناوبری میان صفحات، همگام‌سازی زنده رویدادها و ادغام با System Tray
 """
 
 import logging
-from typing import Optional
+from typing import Set
 from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QIcon, QCloseEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton,
-    QLabel, QStackedWidget, QFrame, QMessageBox
+    QLabel, QStackedWidget, QFrame
 )
 
 from app.core.audio_manager import AudioManager
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
-    """پنجره اصلی دسکتاپ برنامه AM Audio Control."""
+    """پنجره اصلی دسکتاپ برنامه PipeOra."""
 
     def __init__(
         self,
@@ -57,25 +57,33 @@ class MainWindow(QMainWindow):
 
         self._nav_buttons = []
         self._is_quitting = False
+        # نگهداری سینک‌هایی که ترجیح اولیه اتصال برایشان اعمال شده تا انتخاب دستی کاربر بازنویسی نشود
+        self._enforced_favorite_macs: Set[str] = set()
 
-        # تایمر ضد جهش و تجمیع رویدادهای PipeWire (Event Coalescing Debounce)
+        # تایمر ضد جهش و تجمیع رویدادهای PipeWire
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
-        self._refresh_timer.setInterval(75)
+        self._refresh_timer.setInterval(85)
         self._refresh_timer.timeout.connect(self._do_coalesced_refresh)
+
+        # تایمر جبرانی برای اتمام مذاکره SCO بلوتوث هنگام تغییر پروفایل A2DP <-> HFP
+        self._sco_settle_timer = QTimer(self)
+        self._sco_settle_timer.setSingleShot(True)
+        self._sco_settle_timer.setInterval(500)
+        self._sco_settle_timer.timeout.connect(self._do_coalesced_refresh)
 
         self._init_window()
         self._init_ui()
         self._init_tray()
         self._init_event_worker()
 
-        # بارگذاری اولیه داده‌ها
-        QTimer.singleShot(100, self.refresh_all_pages)
+        # بارگذاری اولیه داده‌ها بعد از استقرار کامل پنجره
+        QTimer.singleShot(80, self.refresh_all_pages)
 
     def _init_window(self):
         self.setWindowTitle("PipeOra | مدیریت پیشرفته صدای لینوکس")
         self.setWindowIcon(self.app_icon)
-        self.resize(1000, 660)
+        self.resize(1000, 680)
         self.setMinimumSize(860, 560)
         self.setLayoutDirection(Qt.RightToLeft)
 
@@ -128,7 +136,7 @@ class MainWindow(QMainWindow):
         brand_layout.addStretch()
         sidebar_layout.addLayout(brand_layout)
 
-        sidebar_layout.addSpacing(16)
+        sidebar_layout.addSpacing(14)
 
         # دکمه‌های ناوبری با آیکون‌های وکتور SVG
         nav_items = [
@@ -141,6 +149,7 @@ class MainWindow(QMainWindow):
 
         for text, icon_name, idx in nav_items:
             btn = QPushButton(f"  {text}")
+            btn.setCursor(Qt.PointingHandCursor)
             btn.setIcon(IconHelper.get_icon(icon_name))
             btn.setIconSize(QSize(18, 18))
             btn.setProperty("nav", "true")
@@ -170,7 +179,7 @@ class MainWindow(QMainWindow):
             self.bt_mgr, self.profile_mgr, self.config_mgr
         )
         self.page_settings = SettingsPage(
-            self.config_mgr, self.detector, self.bt_mgr, self.autostart_svc
+            self.config_mgr, self.detector, self.bt_mgr, self.autostart_svc, self.profile_mgr
         )
         self.page_about = AboutPage()
 
@@ -182,8 +191,9 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.stacked_widget, 1)
 
-        # تنظیم صفحه نخست
-        self.switch_page(0)
+        # هایلایت تب نخست بدون رفرش مضاعف پیش از show()
+        self._update_nav_highlight(0)
+        central_widget.setFocus()
 
     def _init_tray(self):
         """راه‌اندازی سینی سیستم (System Tray)."""
@@ -203,16 +213,20 @@ class MainWindow(QMainWindow):
         self.event_worker.bluetooth_changed.connect(self._on_bluetooth_event)
         self.event_worker.start()
 
-    def switch_page(self, index: int):
-        """تغییر صفحه فعال در StackedWidget و به‌روزرسانی هایلایت سایدبار."""
-        self.stacked_widget.setCurrentIndex(index)
+    def _update_nav_highlight(self, index: int):
         for i, btn in enumerate(self._nav_buttons):
             is_active = (i == index)
             btn.setProperty("active", "true" if is_active else "false")
             btn.style().unpolish(btn)
             btn.style().polish(btn)
 
-        # ریفرش دیتای صفحه مورد نظر
+    def switch_page(self, index: int):
+        """تغییر صفحه فعال در StackedWidget و به‌روزرسانی هایلایت سایدبار."""
+        self.stacked_widget.setCurrentIndex(index)
+        self._update_nav_highlight(index)
+        self._refresh_page_at(index)
+
+    def _refresh_page_at(self, index: int):
         if index == 0:
             self.page_dashboard.refresh_data()
         elif index == 1:
@@ -223,7 +237,7 @@ class MainWindow(QMainWindow):
             self.page_settings.refresh_data()
 
     def refresh_all_pages(self):
-        """به‌روزرسانی جامع تمام صفحات و منوی سینی سیستم."""
+        """به‌روزرسانی صفحه فعال و منوی سینی سیستم."""
         default_sink = self.audio_mgr.get_default_sink()
         self.tray_icon.update_status(default_sink)
 
@@ -233,15 +247,7 @@ class MainWindow(QMainWindow):
             "PipeWire: فعال" if pw_ok else "PipeWire: قطع"
         )
 
-        curr_page = self.stacked_widget.currentIndex()
-        if curr_page == 0:
-            self.page_dashboard.refresh_data()
-        elif curr_page == 1:
-            self.page_devices.refresh_data()
-        elif curr_page == 2:
-            self.page_bluetooth.refresh_data()
-        elif curr_page == 3:
-            self.page_settings.refresh_data()
+        self._refresh_page_at(self.stacked_widget.currentIndex())
 
     def _on_sink_event(self, event_text: str):
         self._refresh_timer.start()
@@ -251,47 +257,65 @@ class MainWindow(QMainWindow):
 
     def _on_card_event(self, event_text: str):
         self._refresh_timer.start()
+        self._sco_settle_timer.start()
 
     def _do_coalesced_refresh(self):
-        """اجرای متمرکز و بهینه به‌روزرسانی رابط کاربری بدون بار پردازشی تکراری."""
+        """به‌روزرسانی متمرکز و بلادرنگ تب فعال فعلی (داشبورد، دستگاه‌ها یا بلوتوث) و تری."""
         default_sink = self.audio_mgr.get_default_sink()
         if hasattr(self, "tray_icon"):
             self.tray_icon.update_status(default_sink)
-        self.page_dashboard.refresh_data()
-        if self.stacked_widget.currentIndex() == 1:
-            self.page_devices.refresh_data()
+
+        curr = self.stacked_widget.currentIndex()
+        if curr in (0, 1, 2):
+            self._refresh_page_at(curr)
 
     def _on_stream_event(self):
         if self.stacked_widget.currentIndex() == 1:
             self.page_devices._update_apps()
 
     def _on_bluetooth_event(self):
-        """رسیدگی به تغییرات وضعیت بلوتوث و اتصال خودکار به هدفون محبوب."""
-        # بررسی اتصال خودکار به هدفون محبوب
+        """رسیدگی به تغییرات وضعیت بلوتوث و اعمال تنظیم اتصال اولیه برای هدفون محبوب."""
         if self.config_mgr.is_auto_connect_enabled():
             fav_mac = self.config_mgr.get_favorite_device()
             if fav_mac:
                 self._check_and_enforce_favorite(fav_mac)
 
-        if self.stacked_widget.currentIndex() in (0, 2):
-            self.page_dashboard.refresh_data()
-            if self.stacked_widget.currentIndex() == 2:
-                self.page_bluetooth.refresh_data()
+        curr = self.stacked_widget.currentIndex()
+        if curr in (0, 2):
+            self._refresh_page_at(curr)
 
     def _check_and_enforce_favorite(self, fav_mac: str):
-        """اگر هدفون محبوب متصل شد، آن را خودکار به خروجی پیش‌فرض و A2DP تبدیل کن."""
+        """
+        اگر هدفون محبوب به تازگی متصل شد، یک‌بار آن را پیش‌فرض (و در صورت تنظیم A2DP) می‌کند.
+        از بازنویسی انتخاب دستی HFP/A2DP کاربر در تیک‌های بعدی جلوگیری می‌شود.
+        """
         sinks = self.audio_mgr.get_output_sinks()
+        connected_fav_mac = None
+
         for s in sinks:
             if s.is_bluetooth:
                 props = s.properties
-                dev_mac = props.get("device.bus_path", "") or props.get("device.string", "") or props.get("api.bluez5.address", "")
+                dev_mac = (
+                    props.get("device.bus_path", "")
+                    or props.get("device.string", "")
+                    or props.get("api.bluez5.address", "")
+                )
                 if fav_mac.lower().replace(":", "_") in s.name.lower() or fav_mac.lower() in str(dev_mac).lower():
-                    if not s.is_default:
-                        logger.info("سوئیچ خودکار خروجی پیش‌فرض به هدفون محبوب: %s", s.name)
-                        self.audio_mgr.set_default_sink(s.name)
-                    if self.config_mgr.is_prefer_a2dp_enabled() and s.card_id:
-                        self.profile_mgr.switch_to_a2dp_if_possible(str(s.card_id))
+                    connected_fav_mac = fav_mac.lower()
+                    if connected_fav_mac not in self._enforced_favorite_macs:
+                        self._enforced_favorite_macs.add(connected_fav_mac)
+                        if not s.is_default:
+                            logger.info("سوئیچ اولیه خروجی پیش‌فرض به هدفون محبوب: %s", s.name)
+                            self.audio_mgr.set_default_sink(s.name)
+                        if self.config_mgr.is_prefer_a2dp_enabled():
+                            card_target = s.card_name or (str(s.card_id) if s.card_id else None)
+                            if card_target:
+                                self.profile_mgr.switch_to_a2dp_if_possible(card_target)
                     break
+
+        # اگر هدفون محبوب قطع اتصال شد، رکورد سشن را پاک کن تا هنگام اتصال بعدی دوباره اعمال شود
+        if connected_fav_mac is None:
+            self._enforced_favorite_macs.discard(fav_mac.lower())
 
     def toggle_window(self):
         """پنهان‌سازی یا نمایش پنجره از سینی سیستم."""
@@ -327,6 +351,8 @@ class MainWindow(QMainWindow):
 
     def quit_application(self):
         """خروج قطعی و آزادکردن تمام منابع و سرویس‌ها."""
+        if self._is_quitting:
+            return
         self._is_quitting = True
         if hasattr(self, "event_worker"):
             self.event_worker.stop()

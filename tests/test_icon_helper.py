@@ -19,7 +19,9 @@ def test_icon_helper_loading(qapp):
         "headphones", "headset-mic", "bluetooth", "bluetooth-connected",
         "display-hdmi", "nav-home", "nav-devices", "nav-bluetooth",
         "nav-settings", "nav-info", "star-filled", "star-outline",
-        "battery-high", "refresh", "check-circle"
+        "battery-high", "refresh", "check-circle", "pipeora",
+        "check-mark", "chevron-down", "plus", "minus",
+        "info-circle", "auto-switch", "mic-on", "mic-off"
     ]
 
     for name in icons_to_test:

@@ -91,15 +91,37 @@ def test_headset_mode_switching():
         assert mode == "a2dp"
         assert mgr.has_headset_modes("110") is True
 
-        # Switch to hfp: should set profile, and then update default source to bluez_input
-        res_hfp = mgr.set_headset_mode("110", "hfp")
+        # Switch to hfp: should disable autoswitch, set profile, and update default source
+        res_hfp = mgr.set_headset_mode("110", "hfp", disable_autoswitch=True)
         assert res_hfp is True
         mock_audio_mgr.set_default_source.assert_called_with("bluez_input.84:AC:60:C9:02:74")
         mock_audio_mgr.move_recording_streams.assert_called_with("bluez_input.84:AC:60:C9:02:74")
 
+        # Verify wpctl settings was invoked to disable autoswitch
+        wp_calls = [c.args[0] for c in mock_run.call_args_list if c.args and "wpctl" in c.args[0]]
+        assert any("bluetooth.autoswitch-to-headset-profile" in c and "false" in c for c in wp_calls)
+
         # Switch to a2dp: should set default source to fallback mic first, move streams, and set a2dp
-        res_a2dp = mgr.set_headset_mode("110", "a2dp")
+        res_a2dp = mgr.set_headset_mode("110", "a2dp", disable_autoswitch=True)
         assert res_a2dp is True
         mock_audio_mgr.set_default_source.assert_called_with("alsa_input.pci-0000_00_1f.3.analog-stereo")
         mock_audio_mgr.move_recording_streams.assert_called_with("alsa_input.pci-0000_00_1f.3.analog-stereo")
+
+
+def test_wireplumber_autoswitch_get_and_set():
+    mgr = ProfileManager()
+    sample_wp_out = """
+- Id: bluetooth.autoswitch-to-headset-profile
+  Name: Auto-switch to headset profile
+  Type: Boolean
+  Default: true
+  Value: false (Saved: false)
+"""
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout=sample_wp_out)
+        assert mgr.get_wireplumber_autoswitch() is False
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        assert mgr.set_wireplumber_autoswitch(True) is True
+
 

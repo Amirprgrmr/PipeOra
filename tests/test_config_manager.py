@@ -46,3 +46,11 @@ def test_config_manager_migration(tmp_path, monkeypatch):
     assert cfg.get("prefer_a2dp") is False
     assert (tmp_path / "pipeora" / "config.json").exists()
 
+
+def test_headset_auto_switch_config(tmp_path):
+    cfg = ConfigManager(config_path=str(tmp_path / "cfg.json"))
+    assert cfg.is_headset_auto_switch_enabled() is False
+    cfg.set_headset_auto_switch_enabled(True)
+    cfg2 = ConfigManager(config_path=str(tmp_path / "cfg.json"))
+    assert cfg2.is_headset_auto_switch_enabled() is True
+

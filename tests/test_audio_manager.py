@@ -179,3 +179,11 @@ def test_fallback_source_detection_and_stream_migration():
         moved_count = manager.move_recording_streams(fallback)
         assert moved_count == 1
 
+
+def test_sink_port_display_name():
+    from app.models.audio import SinkDevice
+    s1 = SinkDevice(id=1, name="alsa_output", description="Built-in Audio", mute=False, volume_percent=50, active_port="analog-output-speaker")
+    assert "اسپیکر" in s1.port_display_name
+    s2 = SinkDevice(id=2, name="bluez_output", description="QCY", mute=False, volume_percent=50, active_port="headset-hf-output", is_bluetooth=True)
+    assert "HFP" in s2.port_display_name
+

@@ -89,12 +89,13 @@ def load_application_font():
 
 
 def load_stylesheet() -> str:
-    """بارگذاری استایل‌شیت یکپارچه Graphite Dark."""
+    """بارگذاری استایل‌شیت یکپارچه Graphite Dark همراه با تزریق مسیر واقعی آیکون‌ها."""
     qss_path = Path(__file__).resolve().parent / "ui" / "styles" / "style.qss"
+    icons_dir = (Path(__file__).resolve().parent / "resources" / "icons").as_posix()
     if qss_path.exists():
         try:
             with open(qss_path, "r", encoding="utf-8") as f:
-                return f.read()
+                return f.read().replace("{{ICONS_DIR}}", icons_dir)
         except Exception as e:
             logger.error("خطا در بارگذاری استایل‌شیت: %s", e)
     return ""
@@ -170,6 +171,7 @@ def main():
 
     # اتصال محافظت از Single Instance
     single_instance = SingleInstanceApp(main_window)
+    app.aboutToQuit.connect(main_window.quit_application)
 
     # هندل کردن سیگنال‌های سیستمی (Ctrl+C در ترمینال)
     signal.signal(signal.SIGINT, lambda sig, frame: main_window.quit_application())

@@ -1,16 +1,5 @@
 import os
-import pytest
-from PySide6.QtWidgets import QApplication
-
-# اطمینان از اجرای تست‌ها در محیط Offscreen Wayland/CI
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-
-@pytest.fixture(scope="session")
-def qapp():
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    return app
 
 def test_status_badge(qapp):
     from app.ui.components.status_badge import StatusBadge
@@ -46,3 +35,22 @@ def test_headset_mode_card(qapp):
     # Initially hidden until set_target_card is called
     card.set_target_card(None)
     assert card.isVisible() is False
+    # Verify card width fits cleanly in 860x560 window without horizontal overflow
+    assert card.minimumSizeHint().width() < 680
+    # Verify no emojis in notice banner
+    notice = card.lbl_notice.text()
+    assert "💡" not in notice and "🎙" not in notice
+    # Verify option cards keep clean minimum height across repeated state refreshes
+    assert card.frame_a2dp.minimumHeight() >= 150
+    assert card.frame_hfp.minimumHeight() >= 150
+    card._update_ui_state("a2dp")
+    assert card._rendered_mode == "a2dp"
+    card._update_ui_state("hfp")
+    assert card._rendered_mode == "hfp"
+
+
+def test_status_badge_min_height(qapp):
+    from app.ui.components.status_badge import StatusBadge
+    badge = StatusBadge("KDE (wayland)", variant="primary")
+    assert badge.minimumHeight() >= 26
+
